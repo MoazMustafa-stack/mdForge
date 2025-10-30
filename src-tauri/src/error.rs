@@ -30,16 +30,11 @@ pub enum MdForgeError {
 impl From<std::io::Error> for MdForgeError {
     fn from(err: std::io::Error) -> Self {
         match err.kind() {
-            std::io::ErrorKind::NotFound => 
-                MdForgeError::NotFound(err.to_string()),
+            std::io::ErrorKind::NotFound => MdForgeError::NotFound(err.to_string()),
             _ => MdForgeError::Io(err.to_string()),
         }
     }
 }
-
-// Markdown parsing errors - pulldown-cmark doesn't have a ParseError type,
-// so we'll handle markdown errors manually in our markdown processing functions
-// For example, if parsing fails, we'll return MdForgeError::Markdown directly
 
 // JSON serialization errors
 impl From<serde_json::Error> for MdForgeError {
@@ -98,4 +93,74 @@ impl MdForgeError {
 // Helper method to convert any error to MdForgeError::Unknown
 pub fn from_any_error<E: std::error::Error>(err: E) -> MdForgeError {
     MdForgeError::Unknown(err.to_string())
+}
+
+// Unit tests for MdForgeError conversions and helpers
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn io_from_error_not_found() {
+        let err = io::Error::new(io::ErrorKind::NotFound, "no file");
+        let mfe: MdForgeError = err.into();
+        match mfe {
+            MdForgeError::NotFound(s) => assert!(s.contains("no file")),
+            other => panic!("expected NotFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn io_from_error_other() {
+        let err = io::Error::new(io::ErrorKind::Other, "some io");
+        let mfe: MdForgeError = err.into();
+        match mfe {
+            MdForgeError::Io(s) => assert!(s.contains("some io")),
+            other => panic!("expected Io, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn serde_json_from_error() {
+        let err = serde_json::from_str::<serde_json::Value>("not json").unwrap_err();
+        let mfe: MdForgeError = err.into();
+        match mfe {
+            MdForgeError::Serialization(s) => assert!(s.contains("JSON error")),
+            other => panic!("expected Serialization, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn toml_de_from_error() {
+        // invalid TOML string to trigger a deserialization error
+        let err = toml::from_str::<toml::Value>("=invalid").unwrap_err();
+        let mfe: MdForgeError = err.into();
+        match mfe {
+            MdForgeError::Serialization(s) => assert!(s.contains("TOML deserialization error")),
+            other => panic!("expected Serialization (TOML de), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn helper_constructors_and_unknown() {
+        let e = MdForgeError::io("oops");
+        match e {
+            MdForgeError::Io(s) => assert!(s.contains("oops")),
+            other => panic!("expected Io, got {:?}", other),
+        }
+
+        let e = MdForgeError::invalid_path("/bad");
+        match e {
+            MdForgeError::InvalidPath(s) => assert!(s.contains("/bad")),
+            other => panic!("expected InvalidPath, got {:?}", other),
+        }
+
+        let any_err = std::fmt::Error {};
+        let mfe = from_any_error(any_err);
+        match mfe {
+            MdForgeError::Unknown(s) => assert!(!s.is_empty()),
+            other => panic!("expected Unknown, got {:?}", other),
+        }
+    }
 }
