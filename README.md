@@ -4,6 +4,8 @@
 # mdForge  
 ### ⚙️ *A High-Performance Static Site Generator GUI*
 
+**🚧 PROJECT UNDER ACTIVE DEVELOPMENT 🚧**
+
 > Transform Markdown into fully-fledged static websites — powered by **Rust** and **Tauri**.
 
 <img src="docs/banner.png" alt="mdForge Banner" width="800"/>
