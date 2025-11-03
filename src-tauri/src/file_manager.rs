@@ -161,10 +161,40 @@ impl FileManager{
             })
     }
 
-    fn is_markdown_file(path: &Path) -> bool{
+    pub fn is_markdown_file(path: &Path) -> bool{
         path.extension().and_then(|ext| ext.to_str())
         .map(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
         .unwrap_or(false)
+    }
+
+    pub fn list_all_files(directory: &Path) -> Result<Vec<PathBuf>> {
+        if !directory.exists() {
+            return Err(MdForgeError::not_found(directory.display().to_string()));
+        }
+
+        if !directory.is_dir() {
+            return Err(MdForgeError::invalid_path(
+                format!("Path is not a directory: {}", directory.display())
+            ));
+        }
+
+        let entries = fs::read_dir(directory)
+            .map_err(|e| MdForgeError::io(format!("Failed to read directory {}: {}", directory.display(), e)))?;
+
+        let mut files = Vec::new();
+
+        for entry in entries {
+            let entry = entry
+                .map_err(|e| MdForgeError::io(format!("Failed to read directory entry: {}", e)))?;
+            let path = entry.path();
+
+            if path.is_file() {
+                files.push(path);
+            }
+            // TODO: Add recursive directory walking here
+        }
+
+        Ok(files)
     }
 }
 
@@ -179,8 +209,6 @@ pub struct FileMetadata {
 
 
 // ----- Unit Test Section -----
-// Add this to the bottom of your file_manager.rs
-
 #[cfg(test)]
 mod tests {
     use super::*;
