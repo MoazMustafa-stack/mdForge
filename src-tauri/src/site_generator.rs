@@ -94,7 +94,17 @@ impl SiteGenerator{
     }
 
     fn generate_output_path(&self, input_path: &Path, new_extension: &str) -> Result<PathBuf>{
+        let relative_path = input_path
+            .strip_prefix(&self.config.input_dir)
+            .map_err(|_| MdForgeError::invalid_path("Input file not in content directory"))?;
         
+        let mut output_path = self.config.output_dir.join(relative_path);
+
+        if !new_extension.is_empty(){
+            output_path.set_extension(new_extension);
+        }
+
+        Ok(output_path)
     }
 
 }
