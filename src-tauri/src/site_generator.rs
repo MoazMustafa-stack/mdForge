@@ -258,3 +258,285 @@ impl Default for SiteGenerationReport {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ========================================
+    // Title Extraction Tests
+    // ========================================
+
+    #[test]
+    fn test_extract_title_from_frontmatter() {
+        let generator = SiteGenerator::default();
+        let content = r#"---
+title: "My Awesome Post"
+author: John Doe
+---
+# Some Heading
+Content here"#;
+        
+        let path = Path::new("test.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "My Awesome Post");
+    }
+
+    #[test]
+    fn test_extract_title_from_frontmatter_no_quotes() {
+        let generator = SiteGenerator::default();
+        let content = r#"---
+title: Simple Title
+---
+Content"#;
+        
+        let path = Path::new("test.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "Simple Title");
+    }
+
+    #[test]
+    fn test_extract_title_from_h1() {
+        let generator = SiteGenerator::default();
+        let content = r#"# Welcome to My Site
+This is some content"#;
+        
+        let path = Path::new("test.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "Welcome to My Site");
+    }
+
+    #[test]
+    fn test_extract_title_from_h1_with_extra_spaces() {
+        let generator = SiteGenerator::default();
+        let content = "#    Padded Title   \nContent";
+        
+        let path = Path::new("test.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "Padded Title");
+    }
+
+    #[test]
+    fn test_extract_title_from_filename_kebab_case() {
+        let generator = SiteGenerator::default();
+        let content = "Just some content without headings";
+        
+        let path = Path::new("my-blog-post.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "My Blog Post");
+    }
+
+    #[test]
+    fn test_extract_title_from_filename_snake_case() {
+        let generator = SiteGenerator::default();
+        let content = "Content without title";
+        
+        let path = Path::new("my_document_file.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "My Document File");
+    }
+
+    #[test]
+    fn test_extract_title_from_filename_with_date_prefix() {
+        let generator = SiteGenerator::default();
+        let content = "Content";
+        
+        let path = Path::new("2024-01-15-hello-world.md");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "Hello World");
+    }
+
+    #[test]
+    fn test_extract_title_fallback_to_untitled() {
+        let generator = SiteGenerator::default();
+        let content = "Content without title";
+        
+        // Path with no stem (shouldn't happen in practice, but test the fallback)
+        let path = Path::new("");
+        let title = generator.extract_title(path, content);
+        assert_eq!(title, "Untitled");
+    }
+
+    #[test]
+    fn test_extract_from_frontmatter_no_frontmatter() {
+        let generator = SiteGenerator::default();
+        let content = "# Just a heading\nNo frontmatter here";
+        
+        let result = generator.extract_from_frontmatter(content);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extract_from_frontmatter_no_title_field() {
+        let generator = SiteGenerator::default();
+        let content = r#"---
+author: John Doe
+date: 2024-01-15
+---
+Content"#;
+        
+        let result = generator.extract_from_frontmatter(content);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_extract_from_h1_no_heading() {
+        let generator = SiteGenerator::default();
+        let content = "Just plain text\nNo headings here\n## This is H2, not H1";
+        
+        let result = generator.extract_from_h1(content);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_filename_to_title_simple() {
+        let generator = SiteGenerator::default();
+        let path = Path::new("hello-world.md");
+        
+        let result = generator.filename_to_title(path);
+        assert_eq!(result, Some("Hello World".to_string()));
+    }
+
+    #[test]
+    fn test_filename_to_title_mixed_separators() {
+        let generator = SiteGenerator::default();
+        let path = Path::new("my_awesome-document.md");
+        
+        let result = generator.filename_to_title(path);
+        assert_eq!(result, Some("My Awesome Document".to_string()));
+    }
+
+    // ========================================
+    // Template Tests
+    // ========================================
+
+    #[test]
+    fn test_apply_basic_template() {
+        let generator = SiteGenerator::default();
+        let mut context = HashMap::new();
+        context.insert("title".to_string(), "Test Page".to_string());
+        context.insert("content".to_string(), "<h1>Hello</h1>".to_string());
+        
+        let html = generator.apply_basic_template(&context);
+        
+        assert!(html.contains("<title>Test Page</title>"));
+        assert!(html.contains("<h1>Hello</h1>"));
+        assert!(html.contains("<!DOCTYPE html>"));
+    }
+
+    #[test]
+    fn test_apply_basic_template_missing_title() {
+        let generator = SiteGenerator::default();
+        let mut context = HashMap::new();
+        context.insert("content".to_string(), "<p>Content</p>".to_string());
+        
+        let html = generator.apply_basic_template(&context);
+        
+        assert!(html.contains("<title>Untitled</title>"));
+        assert!(html.contains("<p>Content</p>"));
+    }
+
+    #[test]
+    fn test_apply_basic_template_missing_content() {
+        let generator = SiteGenerator::default();
+        let mut context = HashMap::new();
+        context.insert("title".to_string(), "Test".to_string());
+        
+        let html = generator.apply_basic_template(&context);
+        
+        assert!(html.contains("<title>Test</title>"));
+        assert!(html.contains("<body>"));
+    }
+
+    // ========================================
+    // SiteGenerationReport Tests
+    // ========================================
+
+    #[test]
+    fn test_site_generation_report_new() {
+        let report = SiteGenerationReport::new();
+        
+        assert_eq!(report.markdown_files_processed, 0);
+        assert_eq!(report.markdown_files_failed, 0);
+        assert_eq!(report.assets_copied, 0);
+        assert_eq!(report.assets_failed, 0);
+        assert_eq!(report.errors.len(), 0);
+    }
+
+    #[test]
+    fn test_site_generation_report_total_files_processed() {
+        let mut report = SiteGenerationReport::new();
+        report.markdown_files_processed = 5;
+        report.assets_copied = 3;
+        
+        assert_eq!(report.total_files_processed(), 8);
+    }
+
+    #[test]
+    fn test_site_generation_report_total_files_failed() {
+        let mut report = SiteGenerationReport::new();
+        report.markdown_files_failed = 2;
+        report.assets_failed = 1;
+        
+        assert_eq!(report.total_files_failed(), 3);
+    }
+
+    #[test]
+    fn test_site_generation_report_is_success() {
+        let mut report = SiteGenerationReport::new();
+        report.markdown_files_processed = 5;
+        
+        assert!(report.is_success());
+        
+        report.markdown_files_failed = 1;
+        assert!(!report.is_success());
+    }
+
+    #[test]
+    fn test_site_generation_report_default() {
+        let report = SiteGenerationReport::default();
+        
+        assert_eq!(report.total_files_processed(), 0);
+        assert_eq!(report.total_files_failed(), 0);
+        assert!(report.is_success());
+    }
+
+    // ========================================
+    // SiteConfig Tests
+    // ========================================
+
+    #[test]
+    fn test_site_config_default() {
+        let config = SiteConfig::default();
+        
+        assert_eq!(config.input_dir, PathBuf::from("./content"));
+        assert_eq!(config.output_dir, PathBuf::from("./output"));
+        assert_eq!(config.template_dir, PathBuf::from("./templates"));
+        assert_eq!(config.base_template, "base.html");
+    }
+
+    #[test]
+    fn test_site_generator_default() {
+        let generator = SiteGenerator::default();
+        
+        assert_eq!(generator.config.input_dir, PathBuf::from("./content"));
+        assert_eq!(generator.config.output_dir, PathBuf::from("./output"));
+    }
+
+    #[test]
+    fn test_site_generator_new_with_custom_config() {
+        let config = SiteConfig {
+            input_dir: PathBuf::from("./my-content"),
+            output_dir: PathBuf::from("./dist"),
+            template_dir: PathBuf::from("./my-templates"),
+            base_template: "custom.html".to_string(),
+        };
+        
+        let generator = SiteGenerator::new(config.clone());
+        
+        assert_eq!(generator.config.input_dir, PathBuf::from("./my-content"));
+        assert_eq!(generator.config.output_dir, PathBuf::from("./dist"));
+        assert_eq!(generator.config.template_dir, PathBuf::from("./my-templates"));
+        assert_eq!(generator.config.base_template, "custom.html");
+    }
+}
