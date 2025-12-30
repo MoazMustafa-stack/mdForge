@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
+/// Configuration for site generation
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SiteConfig{
     pub input_dir: PathBuf,
@@ -24,11 +26,14 @@ impl Default for SiteConfig{
     }
 }
 
+/// Main site generator that processes markdown files and generates static HTML
+#[allow(dead_code)]
 pub struct SiteGenerator{
     config: SiteConfig,
     markdown_processor: MarkdownProcessor,
 }
 
+#[allow(dead_code)]
 impl SiteGenerator{
     pub fn new(config: SiteConfig) -> Self{
         Self { config, markdown_processor: MarkdownProcessor::default() }
@@ -71,6 +76,11 @@ impl SiteGenerator{
         let markdown_content = FileManager::load_file(input_path)?;
         let html_content = self.markdown_processor.to_html(&markdown_content)?;
         let output_path = self.generate_output_path(input_path, "html")?;
+
+        // Ensure parent directory exists
+        if let Some(parent) = output_path.parent() {
+            FileManager::create_directory(parent)?;
+        }
 
         let mut context = HashMap::new();
         
@@ -131,9 +141,16 @@ impl SiteGenerator{
             return None;
         }
 
-        // Find the closing ---
+        // Find the closing --- (position is relative to lines[1..], so add 1 for actual index)
         let end_index = lines[1..].iter().position(|&line| line.trim() == "---")?;
-        for line in &lines[1..=end_index] {
+        let actual_end = end_index + 1;
+        
+        // Safety check to ensure we don't go out of bounds
+        if actual_end >= lines.len() {
+            return None;
+        }
+        
+        for line in &lines[1..=actual_end] {
             let trimmed = line.trim();
             if trimmed.starts_with("title:") {
                 let title = trimmed[6..].trim();
@@ -163,13 +180,19 @@ impl SiteGenerator{
         path.file_stem()
             .and_then(|s| s.to_str())
             .map(|filename| {
+                // Remove common date prefixes (e.g., "2024-01-15-" or "20240115-")
                 let cleaned = if let Some(pos) = filename.find(|c: char| c.is_alphabetic()) {
-                    &filename[pos..]
+                    if pos > 0 && filename.chars().take(pos).all(|c| c.is_numeric() || c == '-' || c == '_') {
+                        &filename[pos..]
+                    } else {
+                        filename
+                    }
                 } else {
+                    // No alphabetic characters found, use as-is
                     filename
                 };
 
-                cleaned
+                let title = cleaned
                     .replace('-', " ")
                     .replace('_', " ")
                     .split_whitespace()
@@ -183,7 +206,14 @@ impl SiteGenerator{
                         }
                     })
                     .collect::<Vec<_>>()
-                    .join(" ")
+                    .join(" ");
+                
+                // Return original filename if title is empty after processing
+                if title.is_empty() {
+                    filename.to_string()
+                } else {
+                    title
+                }
             })
     }
 
@@ -220,6 +250,8 @@ impl SiteGenerator{
 
 }
 
+/// Report containing statistics and errors from site generation
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct SiteGenerationReport {
     pub markdown_files_processed: u32,

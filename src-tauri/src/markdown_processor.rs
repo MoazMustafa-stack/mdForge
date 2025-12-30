@@ -4,7 +4,8 @@ use serde::{Serialize, Deserialize};
 use scraper::{Html, Selector};
 use regex::Regex;
 
-// Config. for markdown processing options
+/// Configuration for markdown processing options
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarkdownConfig{
     pub smart_punctuation: bool,  // Convert quotes, dashes, etc.
@@ -29,6 +30,7 @@ impl Default for MarkdownConfig{
 }
 
 /// Represents a validation issue found in markdown
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationIssue {
     pub level: IssueLevel,
@@ -47,14 +49,16 @@ impl ValidationIssue {
     }
 }
 
-// Severity level for validation issues
+/// Severity level for validation issues
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IssueLevel {
     Warning,
     Error,
 }
 
-// Main processor for converting markdown to HTML
+/// Main processor for converting markdown to HTML with configurable options
+#[allow(dead_code)]
 pub struct MarkdownProcessor{
     config: MarkdownConfig,
 }
@@ -72,7 +76,7 @@ impl MarkdownProcessor{
 
     pub fn to_html(&self, markdown: &str) -> Result<String> {
         if markdown.trim().is_empty() {
-            return Err(MdForgeError::markdown("Markdown content is empty!"));
+            return Err(MdForgeError::markdown("Markdown content is empty"));
         }
         
         let options = self.build_options();
@@ -82,7 +86,7 @@ impl MarkdownProcessor{
         html::push_html(&mut html_output, parser);
         
         if html_output.trim().is_empty() {
-            return Err(MdForgeError::markdown("Generated HTML is empty!"));
+            return Err(MdForgeError::markdown("Generated HTML is empty"));
         }
         
         let html_output = self.post_process_html(html_output)?;
@@ -222,8 +226,13 @@ impl MarkdownProcessor{
             let after_attrs = &caps[3];
             
             if !self.is_external_link(url) {
+                let before_attrs_str = if before_attrs.is_empty() { 
+                    String::new() 
+                } else { 
+                    format!("{} ", before_attrs) 
+                };
                 return format!("<a {}href=\"{}\"{}>", 
-                    if before_attrs.is_empty() { "" } else { &format!("{} ", before_attrs) },
+                    before_attrs_str,
                     url, 
                     after_attrs
                 );
@@ -238,8 +247,14 @@ impl MarkdownProcessor{
             let (target_attr, remaining_attrs) = self.extract_and_update_attr(&all_attrs, "target", "_blank");
             let (rel_attr, final_attrs) = self.extract_and_update_attr(&remaining_attrs, "rel", "noopener noreferrer");
     
+            let final_attrs_str = if final_attrs.is_empty() { 
+                String::new() 
+            } else { 
+                format!("{} ", final_attrs) 
+            };
+            
             format!("<a {}href=\"{}\" {}{}>", 
-                if final_attrs.is_empty() { "" } else { &format!("{} ", final_attrs) },
+                final_attrs_str,
                 url,
                 target_attr,
                 rel_attr

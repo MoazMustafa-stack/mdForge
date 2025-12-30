@@ -2,9 +2,11 @@ use crate::error::{Result, MdForgeError};
 use std::path::{Path, PathBuf};  
 use std::fs;
 
-// Handle all I/O ops.
+/// Handle all file I/O operations for markdown files and assets
+#[allow(dead_code)]
 pub struct FileManager;
 
+#[allow(dead_code)]
 impl FileManager{
     pub fn load_file(path: &Path) -> Result<String>{
         if !path.exists(){
@@ -25,7 +27,7 @@ impl FileManager{
         if let Some(parent) = path.parent(){
             if !parent.exists(){
                 return Err(MdForgeError::invalid_path(
-                    format!("Parent directory does nt exist: {}",parent.display())
+                    format!("Parent directory does not exist: {}",parent.display())
                 ))
             }
         }
@@ -198,7 +200,8 @@ impl FileManager{
     }
 }
 
-/// File metadata information
+/// File metadata information including size, modification time, and type
+#[allow(dead_code)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FileMetadata {
     pub size: u64,
