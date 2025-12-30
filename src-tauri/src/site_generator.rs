@@ -1,12 +1,9 @@
 use crate::error::{Result,MdForgeError};
 use crate::file_manager::FileManager;
-use crate::markdown_processor::{self, MarkdownConfig, MarkdownProcessor};
+use crate::markdown_processor::MarkdownProcessor;
 use serde::{Deserialize, Serialize};
-use serde_json::map::Entry;
-use tauri::utils::config;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use std::process::Output;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SiteConfig{
@@ -80,17 +77,16 @@ impl SiteGenerator{
         context.insert("content".to_string(), html_content);
         context.insert("title".to_string(), self.extract_title(input_path, &markdown_content));
         
-        // TO-DO: Implement Tera templating
-        let final_html = self.apply_basic_template(&context); //Basic template for now
+        let final_html = self.apply_basic_template(&context); 
 
-        FileManager::save_file(&output_path, &html_content)?;
+        FileManager::save_file(&output_path, &final_html)?;
         
         Ok(())
     }
 
     fn copy_static_asset(&self, input_path: &Path) -> Result<()>{
         let output_path = self.generate_output_path(input_path, "")?;
-        FileManager::copy_static_asset(input_path, output_path)
+        FileManager::copy_static_asset(input_path, &output_path)
     }
 
     fn generate_output_path(&self, input_path: &Path, new_extension: &str) -> Result<PathBuf>{
@@ -107,11 +103,122 @@ impl SiteGenerator{
         Ok(output_path)
     }
 
+    fn extract_title(&self, input_path: &Path, markdown_content: &str) -> String {
+        // Checking for YAML frontmatter
+        if let Some(title) = self.extract_from_frontmatter(markdown_content) {
+            return title;
+        }
+        // First H1 heading
+        if let Some(title) = self.extract_from_h1(markdown_content) {
+            return title;
+        }
+        // Use filename
+        if let Some(title) = self.filename_to_title(input_path) {
+            return title;
+        }
+        // Default fallback
+        "Untitled".to_string()
+    }
+
+    fn extract_from_frontmatter(&self, content: &str) -> Option<String> {
+        // Check if content starts with YAML frontmatter
+        if !content.starts_with("---") {
+            return None;
+        }
+
+        let lines: Vec<&str> = content.lines().collect();
+        if lines.len() < 3 {
+            return None;
+        }
+
+        // Find the closing ---
+        let end_index = lines[1..].iter().position(|&line| line.trim() == "---")?;
+        for line in &lines[1..=end_index] {
+            let trimmed = line.trim();
+            if trimmed.starts_with("title:") {
+                let title = trimmed[6..].trim();
+                let title = title.trim_matches(|c| c == '"' || c == '\'');
+                if !title.is_empty() {
+                    return Some(title.to_string());
+                }
+            }
+        }
+
+        None
+    }
+
+    fn extract_from_h1(&self, content: &str) -> Option<String> {
+        content
+            .lines()
+            .find(|line| line.trim().starts_with("# "))
+            .map(|line| {
+                line.trim()
+                    .trim_start_matches('#')
+                    .trim()
+                    .to_string()
+            })
+    }
+
+    fn filename_to_title(&self, path: &Path) -> Option<String> {
+        path.file_stem()
+            .and_then(|s| s.to_str())
+            .map(|filename| {
+                let cleaned = if let Some(pos) = filename.find(|c: char| c.is_alphabetic()) {
+                    &filename[pos..]
+                } else {
+                    filename
+                };
+
+                cleaned
+                    .replace('-', " ")
+                    .replace('_', " ")
+                    .split_whitespace()
+                    .map(|word| {
+                        let mut chars = word.chars();
+                        match chars.next() {
+                            None => String::new(),
+                            Some(first) => {
+                                first.to_uppercase().collect::<String>() + chars.as_str()
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+    }
+
+    // ========================================
+    // Template Methods
+    // ========================================
+
+    fn apply_basic_template(&self, context: &HashMap<String, String>) -> String {
+        // Basic HTML template - will be replaced with template engine (Tera) later
+        self.render_basic_html_template(context)
+    }
+
+    fn render_basic_html_template(&self, context: &HashMap<String, String>) -> String {
+        format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{}</title>
+</head>
+<body>
+    {}
+</body>
+</html>"#,
+            context.get("title").unwrap_or(&"Untitled".to_string()),
+            context.get("content").unwrap_or(&"".to_string())
+        )
+    }
+
+    // TODO add more templates:
+    // fn render_blog_template(&self, context: &HashMap<String, String>) -> String { ... }
+    // fn render_documentation_template(&self, context: &HashMap<String, String>) -> String { ... }
+    // fn render_landing_page_template(&self, context: &HashMap<String, String>) -> String { ... }
+
 }
-
-
-
-
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SiteGenerationReport {
