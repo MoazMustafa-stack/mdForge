@@ -3,7 +3,7 @@ use crate::file_manager::FileManager;
 use crate::markdown_processor::MarkdownProcessor;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
+use tera::{Tera, Context};
 
 /// Configuration for site generation
 #[allow(dead_code)]
@@ -31,16 +31,40 @@ impl Default for SiteConfig{
 pub struct SiteGenerator{
     config: SiteConfig,
     markdown_processor: MarkdownProcessor,
+    tera: Option<Tera>,
 }
 
 #[allow(dead_code)]
 impl SiteGenerator{
     pub fn new(config: SiteConfig) -> Self{
-        Self { config, markdown_processor: MarkdownProcessor::default() }
+        let tera = Self::load_templates(&config.template_dir);
+        Self { 
+            config, 
+            markdown_processor: MarkdownProcessor::default(),
+            tera,
+        }
     }
 
     pub fn default() -> Self{
-        Self { config: SiteConfig::default(), markdown_processor: MarkdownProcessor::default() }
+        let config = SiteConfig::default();
+        let tera = Self::load_templates(&config.template_dir);
+        Self { 
+            config, 
+            markdown_processor: MarkdownProcessor::default(),
+            tera,
+        }
+    }
+
+    fn load_templates(template_dir: &Path) -> Option<Tera> {
+        if !template_dir.exists() {
+            return None;
+        }
+
+        let template_glob = template_dir.join("**/*.html").to_string_lossy().to_string();
+        match Tera::new(&template_glob) {
+            Ok(tera) => Some(tera),
+            Err(_) => None,
+        }
     }
 
     pub fn generate_site(&self) -> Result<SiteGenerationReport>{
@@ -86,12 +110,12 @@ impl SiteGenerator{
             FileManager::create_directory(parent)?;
         }
 
-        let mut context = HashMap::new();
+        let mut context = Context::new();
         
-        context.insert("content".to_string(), html_content);
-        context.insert("title".to_string(), self.extract_title(input_path, &markdown_content));
+        context.insert("content", &html_content);
+        context.insert("title", &self.extract_title(input_path, &markdown_content));
         
-        let final_html = self.apply_basic_template(&context); 
+        let final_html = self.render_template(&context)?;
 
         FileManager::save_file(&output_path, &final_html)?;
         
@@ -145,7 +169,6 @@ impl SiteGenerator{
             return None;
         }
 
-        // Find the closing --- (position is relative to lines[1..], so add 1 for actual index)
         let end_index = lines[1..].iter().position(|&line| line.trim() == "---")?;
         let actual_end = end_index + 1;
         
@@ -184,7 +207,6 @@ impl SiteGenerator{
         path.file_stem()
             .and_then(|s| s.to_str())
             .map(|filename| {
-                // Remove common date prefixes (e.g., "2024-01-15-" or "20240115-")
                 let cleaned = if let Some(pos) = filename.find(|c: char| c.is_alphabetic()) {
                     if pos > 0 && filename.chars().take(pos).all(|c| c.is_numeric() || c == '-' || c == '_') {
                         &filename[pos..]
@@ -225,32 +247,46 @@ impl SiteGenerator{
     // Template Methods
     // ========================================
 
-    fn apply_basic_template(&self, context: &HashMap<String, String>) -> String {
-        // Basic HTML template - will be replaced with template engine (Tera) later
-        self.render_basic_html_template(context)
+    fn render_template(&self, context: &Context) -> Result<String> {
+        // Try to use Tera templates if available
+        if let Some(ref tera) = self.tera {
+            // Try to render the base template
+            match tera.render(&self.config.base_template, context) {
+                Ok(html) => return Ok(html),
+                Err(_) => {
+                    // Fall through to basic template if Tera fails
+                }
+            }
+        }
+
+        // Fallback to basic HTML template if Tera is not available or fails
+        Ok(self.render_basic_html_template(context))
     }
 
-    fn render_basic_html_template(&self, context: &HashMap<String, String>) -> String {
+    fn render_basic_html_template(&self, context: &Context) -> String {
+        let title = context.get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Untitled");
+        let content = context.get("content")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
         format!(
             r#"<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{}</title>
 </head>
 <body>
     {}
 </body>
 </html>"#,
-            context.get("title").unwrap_or(&"Untitled".to_string()),
-            context.get("content").unwrap_or(&"".to_string())
+            title,
+            content
         )
     }
-
-    // TODO add more templates:
-    // fn render_blog_template(&self, context: &HashMap<String, String>) -> String { ... }
-    // fn render_documentation_template(&self, context: &HashMap<String, String>) -> String { ... }
-    // fn render_landing_page_template(&self, context: &HashMap<String, String>) -> String { ... }
 
 }
 
@@ -447,13 +483,13 @@ Content"#;
     // ========================================
 
     #[test]
-    fn test_apply_basic_template() {
+    fn test_render_template_basic() {
         let generator = SiteGenerator::default();
-        let mut context = HashMap::new();
-        context.insert("title".to_string(), "Test Page".to_string());
-        context.insert("content".to_string(), "<h1>Hello</h1>".to_string());
+        let mut context = Context::new();
+        context.insert("title", "Test Page");
+        context.insert("content", "<h1>Hello</h1>");
         
-        let html = generator.apply_basic_template(&context);
+        let html = generator.render_template(&context).unwrap();
         
         assert!(html.contains("<title>Test Page</title>"));
         assert!(html.contains("<h1>Hello</h1>"));
@@ -461,24 +497,24 @@ Content"#;
     }
 
     #[test]
-    fn test_apply_basic_template_missing_title() {
+    fn test_render_template_missing_title() {
         let generator = SiteGenerator::default();
-        let mut context = HashMap::new();
-        context.insert("content".to_string(), "<p>Content</p>".to_string());
+        let mut context = Context::new();
+        context.insert("content", "<p>Content</p>");
         
-        let html = generator.apply_basic_template(&context);
+        let html = generator.render_template(&context).unwrap();
         
         assert!(html.contains("<title>Untitled</title>"));
         assert!(html.contains("<p>Content</p>"));
     }
 
     #[test]
-    fn test_apply_basic_template_missing_content() {
+    fn test_render_template_missing_content() {
         let generator = SiteGenerator::default();
-        let mut context = HashMap::new();
-        context.insert("title".to_string(), "Test".to_string());
+        let mut context = Context::new();
+        context.insert("title", "Test");
         
-        let html = generator.apply_basic_template(&context);
+        let html = generator.render_template(&context).unwrap();
         
         assert!(html.contains("<title>Test</title>"));
         assert!(html.contains("<body>"));
