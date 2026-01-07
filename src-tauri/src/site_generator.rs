@@ -44,10 +44,14 @@ impl SiteGenerator{
     }
 
     pub fn generate_site(&self) -> Result<SiteGenerationReport>{
+        self.generate_site_with_options(true)
+    }
+
+    pub fn generate_site_with_options(&self, recursive: bool) -> Result<SiteGenerationReport>{
         let mut report = SiteGenerationReport::new();
 
         FileManager::create_directory(&self.config.output_dir)?;
-        let entries = FileManager::list_all_files(&self.config.input_dir)?;
+        let entries = FileManager::list_all_files_recursive(&self.config.input_dir, recursive)?;
 
         for entry in entries{
             if FileManager::is_markdown_file(&entry){

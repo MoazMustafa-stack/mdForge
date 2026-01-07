@@ -1,6 +1,7 @@
 use crate::error::{Result, MdForgeError};
 use std::path::{Path, PathBuf};  
 use std::fs;
+use walkdir::WalkDir;
 
 /// Handle all file I/O operations for markdown files and assets
 #[allow(dead_code)]
@@ -90,6 +91,10 @@ impl FileManager{
     }
 
     pub fn list_markdown_files(directory: &Path) -> Result<Vec<PathBuf>>{
+        Self::list_markdown_files_recursive(directory, false)
+    }
+
+    pub fn list_markdown_files_recursive(directory: &Path, recursive: bool) -> Result<Vec<PathBuf>>{
         if !directory.exists(){
             return Err(MdForgeError::not_found(directory.display().to_string()));
         }
@@ -100,24 +105,39 @@ impl FileManager{
             ));
         }
 
-        let entries = fs::read_dir(directory)
-        .map_err(|e| MdForgeError::io(
-            format!("Failed to read directory: {}", e)
-        ))?;
-
         let mut md_files = Vec::new();
 
-        for entry in entries{
-            let entry = entry.map_err(
-                |e| MdForgeError::io(
-                    format!("Failed to read directory entry: {}",e)
-                )
-            )?;
+        if recursive {
+            // Use walkdir for recursive traversal
+            for entry in WalkDir::new(directory)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let path = entry.path();
+                if path.is_file() && Self::is_markdown_file(path){
+                    md_files.push(path.to_path_buf());
+                }
+            }
+        } else {
+            // Non-recursive: only top-level files
+            let entries = fs::read_dir(directory)
+                .map_err(|e| MdForgeError::io(
+                    format!("Failed to read directory: {}", e)
+                ))?;
 
-            let path = entry.path();
+            for entry in entries{
+                let entry = entry.map_err(
+                    |e| MdForgeError::io(
+                        format!("Failed to read directory entry: {}",e)
+                    )
+                )?;
 
-            if path.is_file() && Self::is_markdown_file(&path){
-                md_files.push(path);
+                let path = entry.path();
+
+                if path.is_file() && Self::is_markdown_file(&path){
+                    md_files.push(path);
+                }
             }
         }
 
@@ -170,6 +190,10 @@ impl FileManager{
     }
 
     pub fn list_all_files(directory: &Path) -> Result<Vec<PathBuf>> {
+        Self::list_all_files_recursive(directory, false)
+    }
+
+    pub fn list_all_files_recursive(directory: &Path, recursive: bool) -> Result<Vec<PathBuf>> {
         if !directory.exists() {
             return Err(MdForgeError::not_found(directory.display().to_string()));
         }
@@ -180,20 +204,34 @@ impl FileManager{
             ));
         }
 
-        let entries = fs::read_dir(directory)
-            .map_err(|e| MdForgeError::io(format!("Failed to read directory {}: {}", directory.display(), e)))?;
-
         let mut files = Vec::new();
 
-        for entry in entries {
-            let entry = entry
-                .map_err(|e| MdForgeError::io(format!("Failed to read directory entry: {}", e)))?;
-            let path = entry.path();
-
-            if path.is_file() {
-                files.push(path);
+        if recursive {
+            // Use walkdir for recursive traversal
+            for entry in WalkDir::new(directory)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let path = entry.path();
+                if path.is_file() {
+                    files.push(path.to_path_buf());
+                }
             }
-            // TODO: Add recursive directory walking here
+        } else {
+            // Non-recursive: only top-level files
+            let entries = fs::read_dir(directory)
+                .map_err(|e| MdForgeError::io(format!("Failed to read directory {}: {}", directory.display(), e)))?;
+
+            for entry in entries {
+                let entry = entry
+                    .map_err(|e| MdForgeError::io(format!("Failed to read directory entry: {}", e)))?;
+                let path = entry.path();
+
+                if path.is_file() {
+                    files.push(path);
+                }
+            }
         }
 
         Ok(files)
@@ -507,5 +545,100 @@ mod tests {
         let metadata = result.unwrap();
         assert!(metadata.is_dir);
         assert!(!metadata.is_file);
+    }
+
+    #[test]
+    fn test_list_markdown_files_recursive() {
+        let temp_dir = tempdir().unwrap();
+        
+        // Create nested directory structure
+        let subdir1 = temp_dir.path().join("subdir1");
+        let subdir2 = temp_dir.path().join("subdir1").join("subdir2");
+        fs::create_dir_all(&subdir2).unwrap();
+        
+        // Create markdown files at different levels
+        create_test_file(temp_dir.path(), "root.md", "# Root");
+        create_test_file(&subdir1, "level1.md", "# Level 1");
+        create_test_file(&subdir2, "level2.md", "# Level 2");
+        create_test_file(&subdir1, "ignore.txt", "ignore");
+        
+        // Test recursive mode
+        let result = FileManager::list_markdown_files_recursive(temp_dir.path(), true);
+        assert!(result.is_ok());
+        
+        let files = result.unwrap();
+        assert_eq!(files.len(), 3);
+        assert!(files.iter().any(|p| p.ends_with("root.md")));
+        assert!(files.iter().any(|p| p.ends_with("level1.md")));
+        assert!(files.iter().any(|p| p.ends_with("level2.md")));
+        assert!(!files.iter().any(|p| p.ends_with("ignore.txt")));
+    }
+
+    #[test]
+    fn test_list_markdown_files_non_recursive() {
+        let temp_dir = tempdir().unwrap();
+        
+        // Create nested directory structure
+        let subdir = temp_dir.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        
+        // Create files at different levels
+        create_test_file(temp_dir.path(), "root.md", "# Root");
+        create_test_file(&subdir, "nested.md", "# Nested");
+        
+        // Test non-recursive mode (default)
+        let result = FileManager::list_markdown_files(temp_dir.path());
+        assert!(result.is_ok());
+        
+        let files = result.unwrap();
+        assert_eq!(files.len(), 1);
+        assert!(files.iter().any(|p| p.ends_with("root.md")));
+        assert!(!files.iter().any(|p| p.ends_with("nested.md")));
+    }
+
+    #[test]
+    fn test_list_all_files_recursive() {
+        let temp_dir = tempdir().unwrap();
+        
+        // Create nested structure
+        let subdir = temp_dir.path().join("assets");
+        fs::create_dir(&subdir).unwrap();
+        
+        // Create various files
+        create_test_file(temp_dir.path(), "index.md", "# Index");
+        create_test_file(&subdir, "style.css", "body {}");
+        create_test_file(&subdir, "script.js", "console.log()");
+        
+        // Test recursive mode
+        let result = FileManager::list_all_files_recursive(temp_dir.path(), true);
+        assert!(result.is_ok());
+        
+        let files = result.unwrap();
+        assert_eq!(files.len(), 3);
+        assert!(files.iter().any(|p| p.ends_with("index.md")));
+        assert!(files.iter().any(|p| p.ends_with("style.css")));
+        assert!(files.iter().any(|p| p.ends_with("script.js")));
+    }
+
+    #[test]
+    fn test_list_all_files_non_recursive() {
+        let temp_dir = tempdir().unwrap();
+        
+        // Create nested structure
+        let subdir = temp_dir.path().join("assets");
+        fs::create_dir(&subdir).unwrap();
+        
+        // Create files at different levels
+        create_test_file(temp_dir.path(), "index.md", "# Index");
+        create_test_file(&subdir, "style.css", "body {}");
+        
+        // Test non-recursive mode (default)
+        let result = FileManager::list_all_files(temp_dir.path());
+        assert!(result.is_ok());
+        
+        let files = result.unwrap();
+        assert_eq!(files.len(), 1);
+        assert!(files.iter().any(|p| p.ends_with("index.md")));
+        assert!(!files.iter().any(|p| p.ends_with("style.css")));
     }
 }
