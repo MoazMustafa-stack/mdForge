@@ -312,17 +312,17 @@ impl SiteGenerationReport {
         }
     }
 
-    pub fn total_files_processed(&self) -> u32 {
-        self.markdown_files_processed + self.assets_copied
-    }
+    // pub fn total_files_processed(&self) -> u32 {
+    //     self.markdown_files_processed + self.assets_copied
+    // }
 
-    pub fn total_files_failed(&self) -> u32 {
-        self.markdown_files_failed + self.assets_failed
-    }
+    // pub fn total_files_failed(&self) -> u32 {
+    //     self.markdown_files_failed + self.assets_failed
+    // }
 
-    pub fn is_success(&self) -> bool {
-        self.total_files_failed() == 0
-    }
+    // pub fn is_success(&self) -> bool {
+    //     self.total_files_failed() == 0
+    // }
 }
 
 impl Default for SiteGenerationReport {
@@ -535,43 +535,43 @@ Content"#;
         assert_eq!(report.errors.len(), 0);
     }
 
-    #[test]
-    fn test_site_generation_report_total_files_processed() {
-        let mut report = SiteGenerationReport::new();
-        report.markdown_files_processed = 5;
-        report.assets_copied = 3;
-        
-        assert_eq!(report.total_files_processed(), 8);
-    }
+    // #[test]
+    // fn test_site_generation_report_total_files_processed() {
+    //     let mut report = SiteGenerationReport::new();
+    //     report.markdown_files_processed = 5;
+    //     report.assets_copied = 3;
+    //     
+    //     assert_eq!(report.total_files_processed(), 8);
+    // }
 
-    #[test]
-    fn test_site_generation_report_total_files_failed() {
-        let mut report = SiteGenerationReport::new();
-        report.markdown_files_failed = 2;
-        report.assets_failed = 1;
-        
-        assert_eq!(report.total_files_failed(), 3);
-    }
+    // #[test]
+    // fn test_site_generation_report_total_files_failed() {
+    //     let mut report = SiteGenerationReport::new();
+    //     report.markdown_files_failed = 2;
+    //     report.assets_failed = 1;
+    //     
+    //     assert_eq!(report.total_files_failed(), 3);
+    // }
 
-    #[test]
-    fn test_site_generation_report_is_success() {
-        let mut report = SiteGenerationReport::new();
-        report.markdown_files_processed = 5;
-        
-        assert!(report.is_success());
-        
-        report.markdown_files_failed = 1;
-        assert!(!report.is_success());
-    }
+    // #[test]
+    // fn test_site_generation_report_is_success() {
+    //     let mut report = SiteGenerationReport::new();
+    //     report.markdown_files_processed = 5;
+    //     
+    //     assert!(report.is_success());
+    //     
+    //     report.markdown_files_failed = 1;
+    //     assert!(!report.is_success());
+    // }
 
-    #[test]
-    fn test_site_generation_report_default() {
-        let report = SiteGenerationReport::default();
-        
-        assert_eq!(report.total_files_processed(), 0);
-        assert_eq!(report.total_files_failed(), 0);
-        assert!(report.is_success());
-    }
+    // #[test]
+    // fn test_site_generation_report_default() {
+    //     let report = SiteGenerationReport::default();
+    //     
+    //     assert_eq!(report.total_files_processed(), 0);
+    //     assert_eq!(report.total_files_failed(), 0);
+    //     assert!(report.is_success());
+    // }
 
     // ========================================
     // SiteConfig Tests

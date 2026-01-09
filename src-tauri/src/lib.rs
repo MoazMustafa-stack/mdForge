@@ -106,11 +106,11 @@ async fn create_directory(path: String) -> Result<()> {
     FileManager::create_directory(&PathBuf::from(path))
 }
 
-#[tauri::command]
-async fn validate_markdown(content: String) -> Vec<markdown_processor::ValidationIssue> {
-    let processor = MarkdownProcessor::default();
-    processor.validate(&content)
-}
+// #[tauri::command]
+// async fn validate_markdown(content: String) -> Vec<markdown_processor::ValidationIssue> {
+//     let processor = MarkdownProcessor::default();
+//     processor.validate(&content)
+// }
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -121,6 +121,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             generate_site,
             generate_site_simple,
@@ -133,7 +134,6 @@ pub fn run() {
             list_markdown_files,
             is_markdown_file,
             create_directory,
-            validate_markdown,
             greet,
         ])
         .run(tauri::generate_context!())

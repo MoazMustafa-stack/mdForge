@@ -74,27 +74,27 @@ impl MdForgeError {
         MdForgeError::InvalidPath(path.into())  
     }
     
-    pub fn config(msg: impl Into<String>) -> Self {
-        MdForgeError::Config(msg.into())  
-    }
+    // pub fn config(msg: impl Into<String>) -> Self {
+    //     MdForgeError::Config(msg.into())  
+    // }
     
     pub fn not_found(resource: impl Into<String>) -> Self {
         MdForgeError::NotFound(resource.into()) 
     }
     
-    pub fn serialization(msg: impl Into<String>) -> Self {
-        MdForgeError::Serialization(msg.into())  
-    }
+    // pub fn serialization(msg: impl Into<String>) -> Self {
+    //     MdForgeError::Serialization(msg.into())  
+    // }
     
-    pub fn unknown(msg: impl Into<String>) -> Self {
-        MdForgeError::Unknown(msg.into())  
-    }
+    // pub fn unknown(msg: impl Into<String>) -> Self {
+    //     MdForgeError::Unknown(msg.into())  
+    // }
 }
 
 // Helper method to convert any error to MdForgeError::Unknown
-pub fn from_any_error<E: std::error::Error>(err: E) -> MdForgeError {
-    MdForgeError::Unknown(err.to_string())
-}
+// pub fn from_any_error<E: std::error::Error>(err: E) -> MdForgeError {
+//     MdForgeError::Unknown(err.to_string())
+// }
 
 // Unit tests for MdForgeError conversions and helpers
 #[cfg(test)]
@@ -186,11 +186,11 @@ mod tests {
             other => panic!("expected InvalidPath, got {:?}", other),
         }
 
-        let e = MdForgeError::config("bad config");
-        match e {
-            MdForgeError::Config(s) => assert_eq!(s, "bad config"),  
-            other => panic!("expected Config, got {:?}", other),
-        }
+        // let e = MdForgeError::config("bad config");
+        // match e {
+        //     MdForgeError::Config(s) => assert_eq!(s, "bad config"),  
+        //     other => panic!("expected Config, got {:?}", other),
+        // }
 
         let e = MdForgeError::not_found("file.txt");
         match e {
@@ -198,46 +198,46 @@ mod tests {
             other => panic!("expected NotFound, got {:?}", other),
         }
 
-        let e = MdForgeError::serialization("serialize failed");
-        match e {
-            MdForgeError::Serialization(s) => assert_eq!(s, "serialize failed"), 
-            other => panic!("expected Serialization, got {:?}", other),
-        }
+        // let e = MdForgeError::serialization("serialize failed");
+        // match e {
+        //     MdForgeError::Serialization(s) => assert_eq!(s, "serialize failed"), 
+        //     other => panic!("expected Serialization, got {:?}", other),
+        // }
 
-        let e = MdForgeError::unknown("mystery error");
-        match e {
-            MdForgeError::Unknown(s) => assert_eq!(s, "mystery error"), 
-            other => panic!("expected Unknown, got {:?}", other),
-        }
+        // let e = MdForgeError::unknown("mystery error");
+        // match e {
+        //     MdForgeError::Unknown(s) => assert_eq!(s, "mystery error"), 
+        //     other => panic!("expected Unknown, got {:?}", other),
+        // }
     }
     
-    #[test]
-    fn from_any_error_helper() {
-        // Test with different error types
-        let fmt_err = std::fmt::Error {};
-        let mfe = from_any_error(fmt_err);
-        match mfe {
-            MdForgeError::Unknown(s) => assert_eq!(s, "an error occurred when formatting an argument"),
-            other => panic!("expected Unknown, got {:?}", other),
-        }
+    // #[test]
+    // fn from_any_error_helper() {
+    //     // Test with different error types
+    //     let fmt_err = std::fmt::Error {};
+    //     let mfe = from_any_error(fmt_err);
+    //     match mfe {
+    //         MdForgeError::Unknown(s) => assert_eq!(s, "an error occurred when formatting an argument"),
+    //         other => panic!("expected Unknown, got {:?}", other),
+    //     }
 
-        // Test with a custom error
-        #[derive(Debug)]
-        struct CustomError;
-        impl std::fmt::Display for CustomError {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "custom error message")
-            }
-        }
-        impl std::error::Error for CustomError {}
+    //     // Test with a custom error
+    //     #[derive(Debug)]
+    //     struct CustomError;
+    //     impl std::fmt::Display for CustomError {
+    //         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    //             write!(f, "custom error message")
+    //         }
+    //     }
+    //     impl std::error::Error for CustomError {}
 
-        let custom_err = CustomError;
-        let mfe = from_any_error(custom_err);
-        match mfe {
-            MdForgeError::Unknown(s) => assert_eq!(s, "custom error message"),
-            other => panic!("expected Unknown, got {:?}", other),
-        }
-    }
+    //     let custom_err = CustomError;
+    //     let mfe = from_any_error(custom_err);
+    //     match mfe {
+    //         MdForgeError::Unknown(s) => assert_eq!(s, "custom error message"),
+    //         other => panic!("expected Unknown, got {:?}", other),
+    //     }
+    // }
 
     #[test]
     fn error_display_format() {

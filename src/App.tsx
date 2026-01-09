@@ -1,50 +1,184 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+interface SiteReport {
+  markdown_files_processed: number;
+  markdown_files_failed: number;
+  assets_copied: number;
+  assets_failed: number;
+  errors: string[];
+}
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+function App() {
+  const [inputDir, setInputDir] = useState("");
+  const [outputDir, setOutputDir] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [report, setReport] = useState<SiteReport | null>(null);
+  const [error, setError] = useState("");
+
+  const [previewMd, setPreviewMd] = useState("");
+  const [previewHtml, setPreviewHtml] = useState("");
+
+  async function selectInputDir() {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Select Markdown Source Directory",
+    });
+    if (selected && typeof selected === "string") {
+      setInputDir(selected);
+    }
+  }
+
+  async function selectOutputDir() {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Select Output Directory",
+    });
+    if (selected && typeof selected === "string") {
+      setOutputDir(selected);
+    }
+  }
+
+  async function generateSite() {
+    if (!inputDir || !outputDir) {
+      setError("Please select both input and output directories");
+      return;
+    }
+
+    setGenerating(true);
+    setError("");
+    setReport(null);
+
+    try {
+      const result = await invoke<SiteReport>("generate_site_simple", {
+        inputDir,
+        outputDir,
+      });
+      setReport(result);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function renderPreview() {
+    if (!previewMd.trim()) return;
+    
+    try {
+      const html = await invoke<string>("render_markdown_simple", {
+        markdownContent: previewMd,
+      });
+      setPreviewHtml(html);
+    } catch (err) {
+      setError(String(err));
+    }
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <div className="container">
+      <header>
+        <h1>mdForge</h1>
+        <p>Static Site Generator</p>
+      </header>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      <div className="main-content">
+        <section className="generator-section">
+          <h2>Generate Site</h2>
+          
+          <div className="form-group">
+            <label>Input Directory (Markdown Files):</label>
+            <div className="input-row">
+              <input 
+                type="text" 
+                value={inputDir} 
+                readOnly 
+                placeholder="No directory selected"
+              />
+              <button onClick={selectInputDir}>Browse</button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Output Directory:</label>
+            <div className="input-row">
+              <input 
+                type="text" 
+                value={outputDir} 
+                readOnly 
+                placeholder="No directory selected"
+              />
+              <button onClick={selectOutputDir}>Browse</button>
+            </div>
+          </div>
+
+          <button 
+            className="generate-btn" 
+            onClick={generateSite}
+            disabled={generating || !inputDir || !outputDir}
+          >
+            {generating ? "Generating..." : "Generate Site"}
+          </button>
+
+          {error && (
+            <div className="error">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
+
+          {report && (
+            <div className="report">
+              <h3>Generation Report</h3>
+              <div className="stats">
+                <div className="stat success">
+                  <span className="label">Markdown Files:</span>
+                  <span className="value">{report.markdown_files_processed}</span>
+                </div>
+                <div className="stat success">
+                  <span className="label">Assets Copied:</span>
+                  <span className="value">{report.assets_copied}</span>
+                </div>
+                {report.markdown_files_failed > 0 && (
+                  <div className="stat error">
+                    <span className="label">Failed:</span>
+                    <span className="value">{report.markdown_files_failed}</span>
+                  </div>
+                )}
+              </div>
+              {report.errors.length > 0 && (
+                <div className="errors-list">
+                  <strong>Errors:</strong>
+                  <ul>
+                    {report.errors.map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="preview-section">
+          <h2>Live Preview</h2>
+          <div className="preview-container">
+            <div className="preview-editor">
+              <textarea
+                placeholder="# Enter Markdown here..."
+                value={previewMd}
+                onChange={(e) => setPreviewMd(e.target.value)}
+              />
+              <button onClick={renderPreview}>Render</button>
+            </div>
+            <div className="preview-output">
+              <div dangerouslySetInnerHTML={{ __html: previewHtml || "<p>Preview will appear here...</p>" }} />
+            </div>
+          </div>
+        </section>
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    </div>
   );
 }
 

@@ -39,14 +39,14 @@ pub struct ValidationIssue {
 }
 
 impl ValidationIssue {
-    /// Create a new warning validation issue
-    pub fn warning(message: &str, suggestion: &str) -> Self {
-        Self {
-            level: IssueLevel::Warning,
-            message: message.to_string(),
-            suggestion: suggestion.to_string(),
-        }
-    }
+    // /// Create a new warning validation issue
+    // pub fn warning(message: &str, suggestion: &str) -> Self {
+    //     Self {
+    //         level: IssueLevel::Warning,
+    //         message: message.to_string(),
+    //         suggestion: suggestion.to_string(),
+    //     }
+    // }
 }
 
 /// Severity level for validation issues
@@ -64,6 +64,7 @@ pub struct MarkdownProcessor{
 }
 
 impl MarkdownProcessor{
+    #[allow(dead_code)]
     pub fn new(config: MarkdownConfig) -> Self{
         Self{config} 
     }
@@ -94,46 +95,45 @@ impl MarkdownProcessor{
         Ok(html_output)
     }
 
-    pub fn to_plain_text(&self, markdown: &str) -> Result<String>{
-        let options = self.build_options();
-        let parser = Parser::new_ext(markdown, options);
-    
-        let mut plain_text = String::new();
-    
-        for event in parser {
-            if let pulldown_cmark::Event::Text(text) = event {
-                if !plain_text.is_empty(){
-                    plain_text.push(' ');
-                }
-                plain_text.push_str(text.trim());
-            }
-        }
-    
-        Ok(plain_text)
-    }
+    // pub fn to_plain_text(&self, markdown: &str) -> Result<String>{
+    //     let options = self.build_options();
+    //     let parser = Parser::new_ext(markdown, options);
+    // 
+    //     let mut plain_text = String::new();
+    // 
+    //     for event in parser {
+    //         if let pulldown_cmark::Event::Text(text) = event {
+    //             if !plain_text.is_empty(){
+    //                 plain_text.push(' ');
+    //             }
+    //             plain_text.push_str(text.trim());
+    //         }
+    //     }
+    //     Ok(plain_text)
+    // }
 
-    pub fn validate(&self, markdown: &str) -> Vec<ValidationIssue> {
-        let mut issues = Vec::new();
+    // pub fn validate(&self, markdown: &str) -> Vec<ValidationIssue> {
+    //     let mut issues = Vec::new();
 
-        // Excessive doc. size check
-        if markdown.len() > 1000000 {
-            issues.push(ValidationIssue::warning(
-                "Document is very large",
-                "Consider breaking the document into smaller pieces"
-            ));
-        }
-        
-        // Unbalanced code blocks check
-        let code_block_count = markdown.matches("```").count();
-        if code_block_count % 2 != 0 {
-            issues.push(ValidationIssue::warning(
-                "Unbalanced code blocks",
-                "Check for missing code block delimiters"
-            ));
-        }
+    //     // Excessive doc. size check
+    //     if markdown.len() > 1000000 {
+    //         issues.push(ValidationIssue::warning(
+    //             "Document is very large",
+    //             "Consider breaking the document into smaller pieces"
+    //         ));
+    //     }
+    //     
+    //     // Unbalanced code blocks check
+    //     let code_block_count = markdown.matches("```").count();
+    //     if code_block_count % 2 != 0 {
+    //         issues.push(ValidationIssue::warning(
+    //             "Unbalanced code blocks",
+    //             "Check for missing code block delimiters"
+    //         ));
+    //     }
 
-        issues
-    }
+    //     issues
+    // }
 
     fn build_options(&self) -> Options{
         let mut options = Options::empty();
@@ -339,13 +339,13 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_plain_text_extraction() {
-        let processor = MarkdownProcessor::default();
-        let markdown = "# Title\nSome **bold** text";
-        let result = processor.to_plain_text(markdown).unwrap();
-        assert_eq!(result, "Title Some bold text");
-    }
+    // #[test]
+    // fn test_plain_text_extraction() {
+    //     let processor = MarkdownProcessor::default();
+    //     let markdown = "# Title\nSome **bold** text";
+    //     let result = processor.to_plain_text(markdown).unwrap();
+    //     assert_eq!(result, "Title Some bold text");
+    // }
     #[test]
     fn test_heading_anchors() {
         let config = MarkdownConfig {
@@ -367,11 +367,11 @@ mod tests {
         assert!(html.contains("rel=\"noopener noreferrer\""));
     }
 
-    #[test]
-    fn test_validation() {
-        let processor = MarkdownProcessor::default();
-        let markdown = "# Test\n```\nunclosed code";
-        let issues = processor.validate(markdown);
-        assert!(!issues.is_empty());
-    }
+    // #[test]
+    // fn test_validation() {
+    //     let processor = MarkdownProcessor::default();
+    //     let markdown = "# Test\n```\nunclosed code";
+    //     let issues = processor.validate(markdown);
+    //     assert!(!issues.is_empty());
+    // }
 }
