@@ -344,13 +344,12 @@ console.log(hello);
         {/* Right Panel - Editor & Preview */}
         <div className="panel panel-right">
           <div className="panel-header">
-            <span className="panel-icon">👁️</span>
             Markdown Editor & Live Preview
           </div>
           <div className="panel-content column">
             {/* Markdown Editor */}
             <div className="flex-1">
-              <label className="form-label" htmlFor="markdown-source">✏️ Markdown Source:</label>
+              <label className="form-label" htmlFor="markdown-source"> Markdown Source:</label>
               <textarea
                 id="markdown-source"
                 className="textarea-90s"
@@ -363,7 +362,7 @@ console.log(hello);
 
             {/* Preview */}
             <div className="flex-col-1">
-              <label className="form-label">🔍 Live Preview:</label>
+              <label className="form-label"> Live Preview:</label>
               <div
                 className="preview-container"
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
