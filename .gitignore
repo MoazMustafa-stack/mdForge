@@ -7,7 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build output
 dist
 dist-ssr
 *.local
@@ -26,3 +29,16 @@ dist-ssr
 # Rust/Tauri Build Output
 target/
 src-tauri/target/
+**/target/
+*.rs.bk
+Cargo.lock
+
+# Rust analyzer
+rust-analyzer/
+**/rust-analyzer/
+
+# Temporary and cache files
+*.tmp
+*.cache
+.cache/
+flycheck*/
