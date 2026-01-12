@@ -10,9 +10,26 @@
 
 <img src="docs/banner.png" alt="mdForge Banner" width="800"/>
 
+[![Release](https://img.shields.io/github/v/release/MoazMustafa-stack/mdForge?style=for-the-badge&color=blue)](https://github.com/MoazMustafa-stack/mdForge/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/MoazMustafa-stack/mdForge/total?style=for-the-badge&color=green)](https://github.com/MoazMustafa-stack/mdForge/releases)
+[![License](https://img.shields.io/github/license/MoazMustafa-stack/mdForge?style=for-the-badge)](LICENSE)
+
 ---
 
 </div>
+
+## Download
+
+| Platform | Download |
+|----------|----------|
+| **Windows** | [`.msi`](https://github.com/MoazMustafa-stack/mdForge/releases/latest) / [`.exe`](https://github.com/MoazMustafa-stack/mdForge/releases/latest) |
+| **macOS (Intel)** | [`.dmg`](https://github.com/MoazMustafa-stack/mdForge/releases/latest) |
+| **macOS (Apple Silicon)** | [`.dmg`](https://github.com/MoazMustafa-stack/mdForge/releases/latest) |
+| **Linux** | [`.deb`](https://github.com/MoazMustafa-stack/mdForge/releases/latest) / [`.AppImage`](https://github.com/MoazMustafa-stack/mdForge/releases/latest) |
+
+> **[View all releases](https://github.com/MoazMustafa-stack/mdForge/releases)**
+
+---
 
 ## Built With
 
