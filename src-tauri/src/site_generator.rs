@@ -78,20 +78,13 @@ impl SiteGenerator{
         let entries = FileManager::list_all_files_recursive(&self.config.input_dir, recursive)?;
 
         for entry in entries{
+            // Check for .md and .markdown files only 
             if FileManager::is_markdown_file(&entry){
                 match self.process_markdown_file(&entry){
                     Ok(_) => report.markdown_files_processed += 1,
                     Err(e) =>{
                         report.errors.push(format!("Failed to process {}: {}",entry.display(), e));
                         report.markdown_files_failed +=1;
-                    }
-                }
-            }else{
-                match self.copy_static_asset(&entry){
-                    Ok(_) => report.assets_copied += 1,
-                    Err(e) => {
-                        report.errors.push(format!("Failed to copy {}: {}",entry.display(), e));
-                        report.assets_failed += 1;
                     }
                 }
             }

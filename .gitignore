@@ -42,3 +42,6 @@ rust-analyzer/
 *.cache
 .cache/
 flycheck*/
+
+# Test Directories
+test-output/
