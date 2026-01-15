@@ -17,11 +17,110 @@ interface SiteGenerationReport {
   errors: string[];
 }
 
+// Loading Screen Component
+interface LoadingScreenProps {
+  isVisible: boolean;
+  message?: string;
+}
+
+function LoadingScreen({ isVisible, message = "Generating Site..." }: LoadingScreenProps) {
+  const [progress, setProgress] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState(message);
+  const [dots, setDots] = useState("");
+
+  const loadingMessages = [
+    "Initializing retro protocols...",
+    "Compiling markdown matrices...",
+    "Optimizing 90s aesthetics...",
+    "Defragmenting content blocks...",
+    "Loading pixel fonts...",
+    "Calibrating CRT display...",
+    "Establishing dialup connection...",
+    "Rendering HTML tables...",
+    "Processing GIF animations...",
+    "Building site architecture...",
+    "Finalizing generation..."
+  ];
+
+  useEffect(() => {
+    if (!isVisible) {
+      setProgress(0);
+      return;
+    }
+
+    // Progress bar animation
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) return prev;
+        const increment = Math.random() * 15 + 5;
+        return Math.min(prev + increment, 95);
+      });
+    }, 400);
+
+    // Random loading messages
+    const messageInterval = setInterval(() => {
+      const randomMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+      setCurrentMessage(randomMessage);
+    }, 1500);
+
+    // Dots animation
+    const dotsInterval = setInterval(() => {
+      setDots(prev => (prev.length >= 3 ? "" : prev + "."));
+    }, 500);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(messageInterval);
+      clearInterval(dotsInterval);
+    };
+  }, [isVisible]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="loading-overlay">
+      <div className="loading-window">
+        <div className="loading-titlebar">
+          <span className="loading-title">mdForge - Site Generation</span>
+        </div>
+        <div className="loading-content">
+          <div className="loading-icon">⚙️</div>
+          <div className="loading-message">
+            {currentMessage}{dots}
+          </div>
+          <div className="progress-bar-container">
+            <div className="progress-bar-outer">
+              <div 
+                className="progress-bar-inner" 
+                style={{ width: `${progress}%` }}
+              >
+                <div className="progress-bar-stripes" />
+              </div>
+            </div>
+            <div className="progress-text">{Math.floor(progress)}%</div>
+          </div>
+          <div className="loading-footer">
+            <span className="loading-spinner">◐</span> Please wait...
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  // Settings State (with localStorage persistence)
+  const [showLoadingScreen, setShowLoadingScreen] = useState(() => {
+    const saved = localStorage.getItem('mdForge_showLoadingScreen');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showSettings, setShowSettings] = useState(false);
+
   // Site Generator State
   const [inputDir, setInputDir] = useState("");
   const [outputDir, setOutputDir] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showFakeLoading, setShowFakeLoading] = useState(false);
   const [report, setReport] = useState<SiteGenerationReport | null>(null);
 
   // Markdown Editor State
@@ -54,6 +153,24 @@ console.log(hello);
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Persist loading screen setting
+  useEffect(() => {
+    localStorage.setItem('mdForge_showLoadingScreen', JSON.stringify(showLoadingScreen));
+  }, [showLoadingScreen]);
+
+  // Toggle settings handlers
+  const handleToggleLoadingScreen = () => {
+    setShowLoadingScreen((prev: boolean) => !prev);
+  };
+
+  const handleOpenSettings = () => {
+    setShowSettings(true);
+  };
+
+  const handleCloseSettings = () => {
+    setShowSettings(false);
+  };
 
   // Render live preview
   const renderPreview = useCallback(async () => {
@@ -93,6 +210,13 @@ console.log(hello);
     setStatus("idle");
     setStatusMessage("Generating site...");
 
+    // Show fake loading screen if enabled
+    if (showLoadingScreen) {
+      setShowFakeLoading(true);
+      const minLoadingTime = 2000 + Math.random() * 2000;
+      await new Promise(resolve => setTimeout(resolve, minLoadingTime));
+    }
+
     try {
       const result = await invoke<SiteGenerationReport>("generate_site_simple", {
         inputDir,
@@ -108,6 +232,7 @@ console.log(hello);
       setStatusMessage(`Error: ${String(error)}`);
       setReport(null);
     } finally {
+      setShowFakeLoading(false);
       setIsGenerating(false);
     }
   };
@@ -223,6 +348,9 @@ console.log(hello);
         </button>
         <button className="menu-item">
           <span>T</span>ools
+        </button>
+        <button className="menu-item" onClick={handleOpenSettings}>
+          <span>S</span>ettings
         </button>
         <button className="menu-item">
           <span>H</span>elp
@@ -393,6 +521,44 @@ console.log(hello);
           <span>{currentTime}</span>
         </div>
       </div>
+
+      {/* Loading Screen */}
+      <LoadingScreen isVisible={showFakeLoading} />
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="modal-overlay" onClick={handleCloseSettings}>
+          <div className="settings-window" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-titlebar">
+              <span className="settings-title">⚙️ Settings</span>
+              <button className="titlebar-btn close" onClick={handleCloseSettings}>×</button>
+            </div>
+            <div className="settings-content">
+              <fieldset className="fieldset-90s">                
+                <label className="checkbox-90s">
+                  <input 
+                    type="checkbox" 
+                    checked={showLoadingScreen}
+                    onChange={handleToggleLoadingScreen}
+                  />
+                  <span>Show loading screen during site generation</span>
+                </label>
+                
+                <div className="setting-description">
+                  When enabled, displays a retro loading screen with progress bar
+                  and status messages during site generation.
+                </div>
+              </fieldset>
+
+              <div className="settings-footer">
+                <button className="btn-90s primary" onClick={handleCloseSettings}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
