@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
 declare global {
@@ -115,6 +115,7 @@ function App() {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Site Generator State
   const [inputDir, setInputDir] = useState("");
@@ -171,6 +172,101 @@ console.log(hello);
   const handleCloseSettings = () => {
     setShowSettings(false);
   };
+
+  const handleOpenHelp = () => {
+    setShowHelp(true);
+  };
+
+  const handleCloseHelp = () => {
+    setShowHelp(false);
+  };
+
+  // TODO: Fix GitHub repo opening - plugin-opener API needs investigation
+  // const handleOpenGitHub = async () => {
+  //   try {
+  //     const opener = await import("@tauri-apps/plugin-opener");
+  //     await opener.open("https://github.com/MoazMustafa-stack/mdForge");
+  //     setStatus("success");
+  //     setStatusMessage("Opened GitHub repository");
+  //   } catch (error) {
+  //     console.error("Failed to open URL:", error);
+  //     setStatus("error");
+  //     setStatusMessage("Failed to open GitHub");
+  //   }
+  // };
+
+  const handleDownloadCheatsheet = async () => {
+    try {
+      // Embedded cheatsheet content
+      const cheatsheet = `# Markdown Cheatsheet
+
+## Headers
+# H1
+## H2
+### H3
+
+## Emphasis
+*Italic* or _Italic_
+**Bold** or __Bold__
+***Bold and Italic***
+~~Strikethrough~~
+
+## Lists
+### Unordered
+* Item 1
+* Item 2
+  * Subitem 2.1
+
+### Ordered
+1. First
+2. Second
+
+## Links
+[GitHub](https://github.com)
+
+## Images
+![Alt Text](https://via.placeholder.com/150)
+
+## Code
+\`Inline Code\`
+
+\`\`\`javascript
+// Code Block
+console.log("Hello World");
+\`\`\`
+
+## Blockquotes
+> This is a blockquote.
+
+## Tables
+| Header 1 | Header 2 |
+| -------- | -------- |
+| Cell 1   | Cell 2   |
+`;
+
+      // Ask user where to save
+      const filePath = await save({
+        defaultPath: "markdown-cheatsheet.md",
+        filters: [{
+          name: "Markdown",
+          extensions: ["md"]
+        }]
+      });
+
+      if (filePath) {
+        await invoke("save_file", {
+          path: filePath,
+          content: cheatsheet
+        });
+        setStatus("success");
+        setStatusMessage("Cheatsheet downloaded successfully");
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      setStatus("error");
+      setStatusMessage("Failed to download cheatsheet");
+    }
+  }
 
   // Render live preview
   const renderPreview = useCallback(async () => {
@@ -352,7 +448,7 @@ console.log(hello);
         <button className="menu-item" onClick={handleOpenSettings}>
           <span>S</span>ettings
         </button>
-        <button className="menu-item">
+        <button className="menu-item" onClick={handleOpenHelp}>
           <span>H</span>elp
         </button>
       </div>
@@ -553,6 +649,50 @@ console.log(hello);
               <div className="settings-footer">
                 <button className="btn-90s primary" onClick={handleCloseSettings}>
                   OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="modal-overlay" onClick={handleCloseHelp}>
+          <div className="settings-window" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-titlebar">
+              <span className="settings-title">❓ Help & Resources</span>
+              <button className="titlebar-btn close" onClick={handleCloseHelp}>×</button>
+            </div>
+            <div className="settings-content">
+              <fieldset className="fieldset-90s">
+                <legend>Resources</legend>
+                
+                {/* TODO: Re-enable when GitHub opener is fixed */}
+                {/* <div className="help-section">
+                  <button className="btn-90s btn-full" onClick={handleOpenGitHub}>
+                    <span></span> View GitHub Repository
+                  </button>
+                  <div className="setting-description">
+                    Visit the mdForge repository for source code, issues, and contributions.
+                  </div>
+                </div>
+
+                <div className="divider" /> */}
+
+                <div className="help-section">
+                  <button className="btn-90s secondary btn-full" onClick={handleDownloadCheatsheet}>
+                    <span>📄</span> Download Markdown Cheatsheet
+                  </button>
+                  <div className="setting-description">
+                    Get a quick reference guide for all supported Markdown syntax.
+                  </div>
+                </div>
+              </fieldset>
+
+              <div className="settings-footer">
+                <button className="btn-90s primary" onClick={handleCloseHelp}>
+                  Close
                 </button>
               </div>
             </div>

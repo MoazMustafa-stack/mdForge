@@ -978,3 +978,12 @@ body {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Help Section Spacing */
+.help-section {
+  margin-bottom: 12px;
+}
+
+.help-section:last-child {
+  margin-bottom: 0;
+}
