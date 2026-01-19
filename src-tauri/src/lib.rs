@@ -106,6 +106,57 @@ async fn create_directory(path: String) -> Result<()> {
     FileManager::create_directory(&PathBuf::from(path))
 }
 
+#[tauri::command]
+async fn export_as_html(
+    markdown_content: String,
+    title: Option<String>,
+    template_name: String,
+    output_path: String,
+) -> Result<String> {
+    // Construct template path
+    let template_path = PathBuf::from("templates").join(format!("{}.html", template_name));
+    
+    // Render markdown with template
+    let html = SiteGenerator::render_markdown_with_template(
+        &markdown_content,
+        title,
+        &template_path,
+    )?;
+    
+    // Save to file
+    FileManager::save_file(&PathBuf::from(&output_path), &html)?;
+    
+    Ok(format!("Successfully exported to {}", output_path))
+}
+
+#[tauri::command]
+async fn get_available_templates() -> Result<Vec<String>> {
+    let templates_dir = PathBuf::from("templates");
+    
+    if !templates_dir.exists() {
+        return Ok(vec!["base".to_string(), "blog".to_string(), "docs".to_string()]);
+    }
+    
+    let mut templates = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(&templates_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("html") {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    templates.push(stem.to_string());
+                }
+            }
+        }
+    }
+    
+    if templates.is_empty() {
+        templates = vec!["base".to_string(), "blog".to_string(), "docs".to_string()];
+    }
+    
+    Ok(templates)
+}
+
 // #[tauri::command]
 // async fn validate_markdown(content: String) -> Vec<markdown_processor::ValidationIssue> {
 //     let processor = MarkdownProcessor::default();
@@ -134,6 +185,8 @@ pub fn run() {
             list_markdown_files,
             is_markdown_file,
             create_directory,
+            export_as_html,
+            get_available_templates,
             greet,
         ])
         .run(tauri::generate_context!())

@@ -987,3 +987,34 @@ body {
 .help-section:last-child {
   margin-bottom: 0;
 }
+
+/* Template Info */
+.template-info {
+  margin-top: 12px;
+  padding: 8px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-shadow);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.template-info strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-purple);
+}
+
+.template-info ul {
+  margin: 4px 0 0 0;
+  padding-left: 16px;
+  list-style-type: square;
+}
+
+.template-info li {
+  margin: 2px 0;
+}
+
+.template-info li strong {
+  display: inline;
+  color: var(--text-dark);
+}

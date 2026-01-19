@@ -117,6 +117,11 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Export State
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("base");
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>(["base", "blog", "docs"]);
+  const [exportTitle, setExportTitle] = useState<string>("");
+
   // Site Generator State
   const [inputDir, setInputDir] = useState("");
   const [outputDir, setOutputDir] = useState("");
@@ -417,6 +422,48 @@ console.log("Hello World");
     setStatusMessage("New document created");
   };
 
+  // Load available templates
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const templates = await invoke<string[]>("get_available_templates");
+        setAvailableTemplates(templates);
+      } catch (error) {
+        console.error("Failed to load templates:", error);
+      }
+    };
+    loadTemplates();
+  }, []);
+
+  // Export as HTML with template
+  const handleExportAsHtml = async () => {
+    try {
+      const filePath = await save({
+        defaultPath: `${exportTitle || "document"}.html`,
+        filters: [{
+          name: "HTML",
+          extensions: ["html"]
+        }]
+      });
+
+      if (filePath) {
+        const result = await invoke<string>("export_as_html", {
+          markdownContent: markdownContent,
+          title: exportTitle || null,
+          templateName: selectedTemplate,
+          outputPath: filePath,
+        });
+        
+        setStatus("success");
+        setStatusMessage(result);
+      }
+    } catch (error) {
+      console.error("Export error:", error);
+      setStatus("error");
+      setStatusMessage(`Export failed: ${error}`);
+    }
+  };
+
   return (
     <div className="window-container">
       {/* Title Bar */}
@@ -566,6 +613,53 @@ console.log("Hello World");
                 <button className="btn-90s secondary" onClick={handleSaveFile}>
                   <span>💾</span> Save
                 </button>
+              </div>
+            </fieldset>
+
+            <div className="divider" />
+
+            {/* Export Section */}
+            <fieldset className="fieldset-90s">
+              <legend>Export as HTML</legend>
+              
+              <div className="form-group">
+                <label className="form-label">Template Style:</label>
+                <select
+                  className="input-90s"
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  title="Select template style for HTML export"
+                >
+                  {availableTemplates.map((template) => (
+                    <option key={template} value={template}>
+                      {template.charAt(0).toUpperCase() + template.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Document Title (optional):</label>
+                <input
+                  type="text"
+                  className="input-90s"
+                  value={exportTitle}
+                  onChange={(e) => setExportTitle(e.target.value)}
+                  placeholder="Auto-detect from markdown"
+                />
+              </div>
+
+              <button className="btn-90s primary btn-full" onClick={handleExportAsHtml}>
+                <span>📤</span> Export as HTML
+              </button>
+
+              <div className="template-info">
+                <strong>Templates:</strong>
+                <ul>
+                  <li><strong>Base</strong> - Simple, clean layout</li>
+                  <li><strong>Blog</strong> - Blog post with metadata</li>
+                  <li><strong>Docs</strong> - Documentation with sidebar</li>
+                </ul>
               </div>
             </fieldset>
           </div>

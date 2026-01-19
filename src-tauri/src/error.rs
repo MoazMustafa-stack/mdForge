@@ -74,6 +74,10 @@ impl MdForgeError {
         MdForgeError::InvalidPath(path.into())  
     }
     
+    pub fn template(msg: impl Into<String>) -> Self {
+        MdForgeError::Config(msg.into())  
+    }
+    
     // pub fn config(msg: impl Into<String>) -> Self {
     //     MdForgeError::Config(msg.into())  
     // }

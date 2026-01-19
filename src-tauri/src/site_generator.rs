@@ -281,6 +281,80 @@ impl SiteGenerator{
         )
     }
 
+    /// Render markdown with a specific template
+    pub fn render_markdown_with_template(
+        markdown_content: &str,
+        title: Option<String>,
+        template_path: &Path,
+    ) -> Result<String> {
+        // Process markdown to HTML
+        let processor = MarkdownProcessor::default();
+        let html_content = processor.to_html(markdown_content)?;
+
+        // Extract title if not provided
+        let final_title = title.unwrap_or_else(|| {
+            // Try to extract from frontmatter or first H1
+            if let Some(t) = Self::quick_extract_title(markdown_content) {
+                t
+            } else {
+                "Untitled".to_string()
+            }
+        });
+
+        // Load and render template
+        if !template_path.exists() {
+            return Err(MdForgeError::invalid_path("Template file does not exist"));
+        }
+
+        let template_dir = template_path.parent()
+            .ok_or_else(|| MdForgeError::invalid_path("Invalid template path"))?;
+        
+        let template_name = template_path.file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| MdForgeError::invalid_path("Invalid template filename"))?;
+
+        let template_glob = template_dir.join("**/*.html").to_string_lossy().to_string();
+        let tera = Tera::new(&template_glob)
+            .map_err(|e| MdForgeError::template(format!("Failed to load template: {}", e)))?;
+
+        let mut context = Context::new();
+        context.insert("content", &html_content);
+        context.insert("title", &final_title);
+
+        tera.render(template_name, &context)
+            .map_err(|e| MdForgeError::template(format!("Failed to render template: {}", e)))
+    }
+
+    /// Quick title extraction helper
+    fn quick_extract_title(markdown: &str) -> Option<String> {
+        // Check frontmatter
+        if markdown.starts_with("---") {
+            for line in markdown.lines().skip(1) {
+                if line.trim() == "---" {
+                    break;
+                }
+                if line.trim().starts_with("title:") {
+                    let title = line.trim()[6..].trim();
+                    let title = title.trim_matches(|c| c == '"' || c == '\'');
+                    if !title.is_empty() {
+                        return Some(title.to_string());
+                    }
+                }
+            }
+        }
+
+        // Check first H1
+        markdown
+            .lines()
+            .find(|line| line.trim().starts_with("# "))
+            .map(|line| {
+                line.trim()
+                    .trim_start_matches('#')
+                    .trim()
+                    .to_string()
+            })
+    }
+
 }
 
 /// Report containing statistics and errors from site generation
