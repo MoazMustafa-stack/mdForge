@@ -113,8 +113,26 @@ async fn export_as_html(
     template_name: String,
     output_path: String,
 ) -> Result<String> {
-    // Construct template path
-    let template_path = PathBuf::from("templates").join(format!("{}.html", template_name));
+    // Construct template path - try multiple locations
+    let possible_paths = vec![
+        PathBuf::from("templates").join(format!("{}.html", template_name)),
+        PathBuf::from("../templates").join(format!("{}.html", template_name)),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("templates")
+            .join(format!("{}.html", template_name)),
+    ];
+    
+    let template_path = possible_paths
+        .into_iter()
+        .find(|p| p.exists())
+        .ok_or_else(|| {
+            error::MdForgeError::invalid_path(format!(
+                "Template '{}' not found in templates directory", 
+                template_name
+            ))
+        })?;
     
     // Render markdown with template
     let html = SiteGenerator::render_markdown_with_template(
@@ -131,25 +149,37 @@ async fn export_as_html(
 
 #[tauri::command]
 async fn get_available_templates() -> Result<Vec<String>> {
-    let templates_dir = PathBuf::from("templates");
+    // Try multiple possible template directory locations
+    let possible_dirs = vec![
+        PathBuf::from("templates"),
+        PathBuf::from("../templates"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("templates"),
+    ];
     
-    if !templates_dir.exists() {
-        return Ok(vec!["base".to_string(), "blog".to_string(), "docs".to_string()]);
-    }
+    let templates_dir = possible_dirs
+        .into_iter()
+        .find(|p| p.exists())
+        .unwrap_or_else(|| PathBuf::from("templates"));
     
     let mut templates = Vec::new();
     
-    if let Ok(entries) = std::fs::read_dir(&templates_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("html") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    templates.push(stem.to_string());
+    if templates_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&templates_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("html") {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        templates.push(stem.to_string());
+                    }
                 }
             }
         }
     }
     
+    // Fallback to default templates if none found
     if templates.is_empty() {
         templates = vec!["base".to_string(), "blog".to_string(), "docs".to_string()];
     }

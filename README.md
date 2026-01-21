@@ -57,9 +57,8 @@
 
 **Key Features:**
 -  **Live Markdown Preview** — See your rendered content in real-time with instant updates
--  **Template Export** — Export markdown to styled HTML using professional templates (base, blog, docs)
 -  **Folder-Based Generation** — Select input/output directories and generate entire sites in seconds
--  **Template Engine** — Uses Tera templates for consistent layouts with automatic title detection
+-  **Template Engine** — Uses Tera templates for consistent layouts (blog, docs, base)
 -  **File Management** — Save, load, and edit markdown files directly from the UI
 -  **Native Performance** — Fast Rust backend with lightweight React frontend
 -  **90s Aesthetic** — Pixel fonts, beveled buttons, and classic window chrome

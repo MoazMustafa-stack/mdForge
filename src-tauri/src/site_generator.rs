@@ -325,8 +325,8 @@ impl SiteGenerator{
             .map_err(|e| MdForgeError::template(format!("Failed to render template: {}", e)))
     }
 
-    /// Quick title extraction helper
-    fn quick_extract_title(markdown: &str) -> Option<String> {
+    /// Quick title extraction helper 
+    pub fn quick_extract_title(markdown: &str) -> Option<String> {
         // Check frontmatter
         if markdown.starts_with("---") {
             for line in markdown.lines().skip(1) {
@@ -679,3 +679,8 @@ Content"#;
         assert_eq!(generator.config.base_template, "custom.html");
     }
 }
+
+// Include comprehensive end-to-end tests
+#[cfg(test)]
+#[path = "site_generator_tests.rs"]
+mod site_generator_tests;

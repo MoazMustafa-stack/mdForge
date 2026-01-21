@@ -458,9 +458,19 @@ console.log("Hello World");
         setStatusMessage(result);
       }
     } catch (error) {
-      console.error("Export error:", error);
+      console.error("Export error details:", error);
       setStatus("error");
-      setStatusMessage(`Export failed: ${error}`);
+      
+      // Better error message extraction
+      let errorMsg = "Export failed";
+      if (typeof error === 'string') {
+        errorMsg = error;
+      } else if (error && typeof error === 'object') {
+        // Extract message from Tauri error object
+        errorMsg = (error as any).message || (error as any).toString() || JSON.stringify(error);
+      }
+      
+      setStatusMessage(`Export failed: ${errorMsg}`);
     }
   };
 
