@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event"
 import "./App.css";
 
 declare global {
@@ -167,6 +168,11 @@ console.log(hello);
   const [statusMessage, setStatusMessage] = useState("Ready");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
+  // Drag and drop 
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isProcessingDrop, setisProcessingDrop] = useState(false);
+  const [dragOverTarget, setdragOverTarget] = useState<'editor' | 'generator' | null>(null);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
@@ -199,6 +205,94 @@ console.log(hello);
   const handleCloseHelp = () => {
     setShowHelp(false);
   };
+
+  const handleDragOver = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+    setdragOverTarget(target);
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget == e.target){
+      setIsDragOver(false);
+      setdragOverTarget(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    setdragOverTarget(null);
+    setisProcessingDrop(true);
+
+    try { 
+      const files = Array.from(e.dataTransfer.files);
+
+      if (files.length === 0){
+        setStatus("error");
+        setStatusMessage("No files dropped");
+        return;
+      }
+
+      if (target === 'editor'){
+        await handleDropToEditor(files);
+      } else if (target === 'generator'){
+        await handleDropToGenerator(files);
+      }
+    } catch (error){
+      console.error("Drop processing error:", error);
+      setStatus("error");
+      setStatusMessage(`Drop failes: ${error}`);
+    } finally{
+      setisProcessingDrop(false);
+    }
+  }, []);
+
+  const handleDropToEditor = async (files: File[]) => {
+    const file = files[0];
+
+    if (!file.name.match(/\.(md|markdown|txt)$/i)){
+      setStatus("error");
+      setStatusMessage("Drop a markdown file .md, .markdown, .txt");
+      return;
+    }
+
+    try {
+      const content = await invoke<string>("load_file", {
+        path: file.path,
+      });
+
+      setMarkdownContent(content);
+      setCurrentFile(file.path || file.name);
+      setStatus("success");
+      setStatusMessage(`Loaded: ${file.name}`);
+    } catch (error){
+      setStatus("error");
+      setStatusMessage(`Failed to load file: {error}`);
+    }
+  };
+
+  const handleDropToGenerator = async (files: File[]) =>{
+    const file = files[0];
+
+    try { 
+      const isDirectory = await invoke<boolean>("is_directory", {
+        path: file.path,
+      });
+
+      if (isDirectory) // CHECKPOINT
+    }
+  }
 
   // TODO: Fix GitHub repo opening - plugin-opener API needs investigation
   // const handleOpenGitHub = async () => {
