@@ -129,6 +129,20 @@ function App() {
   const [showFakeLoading, setShowFakeLoading] = useState(false);
   const [report, setReport] = useState<SiteGenerationReport | null>(null);
 
+  // Menu dropdown states
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  // View states
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [previewVisible, setPreviewVisible] = useState(true);
+  
+  // Edit functionality
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  
+  // Tools states
+  const [wordCount, setWordCount] = useState(0);
+
   // Markdown Editor State
   const [markdownContent, setMarkdownContent] = useState(`# Welcome to mdForge
 
@@ -299,6 +313,92 @@ console.log("Hello World");
     return () => clearTimeout(debounceTimer);
   }, [markdownContent, renderPreview]);
 
+  // Update word count when content changes
+  useEffect(() => {
+    const words = markdownContent.trim().split(/\s+/).filter(word => word.length > 0);
+    setWordCount(words.length);
+  }, [markdownContent]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    if (activeDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [activeDropdown]);
+
+  // Update word count when content changes
+  useEffect(() => {
+    const words = markdownContent.trim().split(/\s+/).filter(word => word.length > 0);
+    setWordCount(words.length);
+  }, [markdownContent]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    if (activeDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [activeDropdown]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'n':
+            e.preventDefault();
+            handleNewFile();
+            break;
+          case 'o':
+            e.preventDefault();
+            handleOpenFile();
+            break;
+          case 's':
+            e.preventDefault();
+            handleSaveFile();
+            break;
+          case 'f':
+            e.preventDefault();
+            handleFind();
+            break;
+          case 'a':
+            if (e.target instanceof HTMLTextAreaElement) {
+              // Let default behavior handle select all in textarea
+              return;
+            }
+            e.preventDefault();
+            handleSelectAll();
+            break;
+          case '=':
+          case '+':
+            e.preventDefault();
+            handleZoomIn();
+            break;
+          case '-':
+            e.preventDefault();
+            handleZoomOut();
+            break;
+          case '0':
+            e.preventDefault();
+            handleResetZoom();
+            break;
+        }
+      }
+      
+      // Escape key to close dropdowns and search
+      if (e.key === 'Escape') {
+        setActiveDropdown(null);
+        setShowSearch(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Generate site
   const handleGenerateSite = async () => {
     if (!inputDir || !outputDir) {
@@ -356,6 +456,31 @@ console.log("Hello World");
     } catch (error) {
       setStatus("error");
       setStatusMessage(`Save error: ${error}`);
+    }
+  };
+
+  // Open file
+  const handleOpenFile = async () => {
+    try {
+      const filePath = await open({
+        filters: [{
+          name: "Markdown",
+          extensions: ["md", "markdown", "txt"]
+        }]
+      });
+
+      if (filePath) {
+        const content = await invoke<string>("load_file", {
+          path: filePath,
+        });
+        setMarkdownContent(content);
+        setCurrentFile(filePath as string);
+        setStatus("success");
+        setStatusMessage("File loaded successfully");
+      }
+    } catch (error) {
+      setStatus("error");
+      setStatusMessage(`Open error: ${error}`);
     }
   };
 
@@ -420,6 +545,89 @@ console.log("Hello World");
     setCurrentFile("");
     setStatus("idle");
     setStatusMessage("New document created");
+    setActiveDropdown(null);
+  };
+
+  // Menu dropdown handlers
+  const handleMenuClick = (menuName: string) => {
+    setActiveDropdown(activeDropdown === menuName ? null : menuName);
+  };
+
+  // Edit menu handlers
+  const handleUndo = () => {
+    document.execCommand('undo');
+    setActiveDropdown(null);
+  };
+
+  const handleRedo = () => {
+    document.execCommand('redo');
+    setActiveDropdown(null);
+  };
+
+  const handleSelectAll = () => {
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+      textarea.select();
+    }
+    setActiveDropdown(null);
+  };
+
+  const handleFind = () => {
+    setShowSearch(!showSearch);
+    setActiveDropdown(null);
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(markdownContent);
+      setStatusMessage('Content copied to clipboard');
+    } catch (error) {
+      setStatusMessage('Failed to copy content');
+    }
+    setActiveDropdown(null);
+  };
+
+  // View menu handlers
+  const handleTogglePreview = () => {
+    setPreviewVisible(!previewVisible);
+    setActiveDropdown(null);
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.1, 2));
+    setActiveDropdown(null);
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
+    setActiveDropdown(null);
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setActiveDropdown(null);
+  };
+
+  // Tools menu handlers
+  const handleInsertDate = () => {
+    const date = new Date().toLocaleDateString();
+    setMarkdownContent(prev => prev + `\n\n${date}`);
+    setActiveDropdown(null);
+  };
+
+  const handleInsertTable = () => {
+    const table = `\n\n| Header 1 | Header 2 | Header 3 |\n| -------- | -------- | -------- |\n| Cell 1   | Cell 2   | Cell 3   |\n| Cell 4   | Cell 5   | Cell 6   |\n\n`;
+    setMarkdownContent(prev => prev + table);
+    setActiveDropdown(null);
+  };
+
+  const handleClearContent = () => {
+    if (confirm('Are you sure you want to clear all content?')) {
+      setMarkdownContent('');
+      setCurrentFile('');
+      setStatusMessage('Content cleared');
+    }
+    setActiveDropdown(null);
   };
 
   // Load available templates
@@ -490,18 +698,107 @@ console.log("Hello World");
 
       {/* Menu Bar */}
       <div className="menubar">
-        <button className="menu-item" onClick={handleNewFile}>
-          <span>F</span>ile
-        </button>
-        <button className="menu-item">
-          <span>E</span>dit
-        </button>
-        <button className="menu-item">
-          <span>V</span>iew
-        </button>
-        <button className="menu-item">
-          <span>T</span>ools
-        </button>
+        <div className="menu-dropdown">
+          <button className="menu-item" onClick={(e) => { e.stopPropagation(); handleMenuClick('file'); }}>
+            <span>F</span>ile
+          </button>
+          {activeDropdown === 'file' && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item" onClick={handleNewFile}>
+                <span>📄</span> New (Ctrl+N)
+              </button>
+              <button className="dropdown-item" onClick={handleOpenFile}>
+                <span>📂</span> Open (Ctrl+O)
+              </button>
+              <button className="dropdown-item" onClick={handleSaveFile}>
+                <span>💾</span> Save (Ctrl+S)
+              </button>
+              <div className="dropdown-divider" />
+              <button className="dropdown-item" onClick={handleExportAsHtml}>
+                <span>📤</span> Export HTML
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <div className="menu-dropdown">
+          <button className="menu-item" onClick={(e) => { e.stopPropagation(); handleMenuClick('edit'); }}>
+            <span>E</span>dit
+          </button>
+          {activeDropdown === 'edit' && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item" onClick={handleUndo}>
+                <span>↶</span> Undo (Ctrl+Z)
+              </button>
+              <button className="dropdown-item" onClick={handleRedo}>
+                <span>↷</span> Redo (Ctrl+Y)
+              </button>
+              <div className="dropdown-divider" />
+              <button className="dropdown-item" onClick={handleCopy}>
+                <span>📋</span> Copy All (Ctrl+A, Ctrl+C)
+              </button>
+              <button className="dropdown-item" onClick={handleSelectAll}>
+                <span>🔘</span> Select All (Ctrl+A)
+              </button>
+              <div className="dropdown-divider" />
+              <button className="dropdown-item" onClick={handleFind}>
+                <span>🔍</span> Find (Ctrl+F)
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <div className="menu-dropdown">
+          <button className="menu-item" onClick={(e) => { e.stopPropagation(); handleMenuClick('view'); }}>
+            <span>V</span>iew
+          </button>
+          {activeDropdown === 'view' && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item" onClick={handleTogglePreview}>
+                <span>{previewVisible ? '👁️‍🗨️' : '👁️'}</span> {previewVisible ? 'Hide' : 'Show'} Preview
+              </button>
+              <div className="dropdown-divider" />
+              <button className="dropdown-item" onClick={handleZoomIn}>
+                <span>🔍➕</span> Zoom In (Ctrl++)
+              </button>
+              <button className="dropdown-item" onClick={handleZoomOut}>
+                <span>🔍➖</span> Zoom Out (Ctrl+-)
+              </button>
+              <button className="dropdown-item" onClick={handleResetZoom}>
+                <span>🎯</span> Reset Zoom (Ctrl+0)
+              </button>
+              <div className="dropdown-divider" />
+              <div className="dropdown-item-info">
+                <span>📏</span> Zoom: {Math.round(zoomLevel * 100)}%
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="menu-dropdown">
+          <button className="menu-item" onClick={(e) => { e.stopPropagation(); handleMenuClick('tools'); }}>
+            <span>T</span>ools
+          </button>
+          {activeDropdown === 'tools' && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item" onClick={handleInsertDate}>
+                <span>📅</span> Insert Date
+              </button>
+              <button className="dropdown-item" onClick={handleInsertTable}>
+                <span>📊</span> Insert Table
+              </button>
+              <div className="dropdown-divider" />
+              <div className="dropdown-item-info">
+                <span>📝</span> Word Count: {wordCount}
+              </div>
+              <div className="dropdown-divider" />
+              <button className="dropdown-item danger" onClick={handleClearContent}>
+                <span>🗑️</span> Clear All Content
+              </button>
+            </div>
+          )}
+        </div>
+        
         <button className="menu-item" onClick={handleOpenSettings}>
           <span>S</span>ettings
         </button>
@@ -676,9 +973,22 @@ console.log("Hello World");
         </div>
 
         {/* Right Panel - Editor & Preview */}
-        <div className="panel panel-right">
+        <div className="panel panel-right" style={{ fontSize: `${zoomLevel}rem` }}>
           <div className="panel-header">
             Markdown Editor & Live Preview
+            {showSearch && (
+              <div className="search-bar">
+                <input
+                  type="text"
+                  className="search-input"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search..."
+                  autoFocus
+                />
+                <button className="search-close" onClick={() => setShowSearch(false)}>×</button>
+              </div>
+            )}
           </div>
           <div className="panel-content column">
             {/* Markdown Editor */}
@@ -694,14 +1004,16 @@ console.log("Hello World");
               />
             </div>
 
-            {/* Preview */}
-            <div className="flex-col-1">
-              <label className="form-label"> Live Preview:</label>
-              <div
-                className="preview-container"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            </div>
+            {/* Preview - Conditionally rendered */}
+            {previewVisible && (
+              <div className="flex-col-1">
+                <label className="form-label"> Live Preview:</label>
+                <div
+                  className="preview-container"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
