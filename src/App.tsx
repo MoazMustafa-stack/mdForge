@@ -258,8 +258,15 @@ console.log(hello);
     }
   }, []);
 
+  type FileWithPath = File & { path?: string };
+
+  const getFilePath = (file: File): string => {
+    return (file as FileWithPath).path ?? file.name;
+  };
+
   const handleDropToEditor = async (files: File[]) => {
     const file = files[0];
+    const filePath = getFilePath(file);
 
     if (!file.name.match(/\.(md|markdown|txt)$/i)){
       setStatus("error");
@@ -269,30 +276,46 @@ console.log(hello);
 
     try {
       const content = await invoke<string>("load_file", {
-        path: file.path,
+        path: filePath,
       });
 
       setMarkdownContent(content);
-      setCurrentFile(file.path || file.name);
+      setCurrentFile(filePath);
       setStatus("success");
       setStatusMessage(`Loaded: ${file.name}`);
     } catch (error){
       setStatus("error");
-      setStatusMessage(`Failed to load file: {error}`);
+      setStatusMessage(`Failed to load file: ${error}`);
     }
   };
 
   const handleDropToGenerator = async (files: File[]) =>{
     const file = files[0];
+    const filePath = getFilePath(file);
 
     try { 
       const isDirectory = await invoke<boolean>("is_directory", {
-        path: file.path,
+        path: filePath,
       });
 
-      if (isDirectory) // CHECKPOINT
+      if (isDirectory){
+        setInputDir(filePath);
+        setStatus("success");
+        setStatusMessage(`Input directory set: ${file.name}`);
+      } else if (file.name.match(/\.(md|markdown)$/i)){
+        const parentDir = filePath.split(/[\\/]/).slice(0, -1).join('/') || "";
+        setInputDir(parentDir);
+        setStatus("success");
+        setStatusMessage(`Input directory set from file: ${file.name}`);
+      } else {
+        setStatus("error");
+        setStatusMessage("Drop a directory or markdown file");
+      }
+    } catch (error){
+      setStatus("error");
+      setStatusMessage(`Drop failed: ${error}`);
     }
-  }
+  };
 
   // TODO: Fix GitHub repo opening - plugin-opener API needs investigation
   // const handleOpenGitHub = async () => {
