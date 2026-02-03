@@ -1,7 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { listen } from "@tauri-apps/api/event"
 import "./App.css";
 
 declare global {
@@ -109,8 +106,7 @@ function LoadingScreen({ isVisible, message = "Generating Site..." }: LoadingScr
   );
 }
 
-function App() {
-  // Settings State (with localStorage persistence)
+  // Title Bar
   const [showLoadingScreen, setShowLoadingScreen] = useState(() => {
     const saved = localStorage.getItem('mdForge_showLoadingScreen');
     return saved !== null ? JSON.parse(saved) : true;
@@ -120,7 +116,7 @@ function App() {
 
   // Export State
   const [selectedTemplate, setSelectedTemplate] = useState<string>("base");
-  const [availableTemplates, setAvailableTemplates] = useState<string[]>(["base", "blog", "docs"]);
+  const [availableTemplates] = useState<string[]>(["base", "blog", "docs"]);
   const [exportTitle, setExportTitle] = useState<string>("");
 
   // Site Generator State
@@ -145,15 +141,18 @@ function App() {
   const [wordCount, setWordCount] = useState(0);
 
   // Markdown Editor State
-  const [markdownContent, setMarkdownContent] = useState(`# Welcome to mdForge
+  const [markdownContent, setMarkdownContent] = useState(`# Welcome to mdForge - Theme Tester
 
-This is a **live preview** of your markdown content.
+This is a **demo-only version** for testing themes and UI.
 
-## Features
+## Demo Mode Features
 
 - Real-time markdown rendering
-- Static site generation
-- File management
+- All UI buttons and menus
+- Demo status messages instead of actual operations
+- Theme switching
+
+## Supported Markdown
 
 \`\`\`javascript
 const hello = "world";
@@ -163,15 +162,9 @@ console.log(hello);
   const [previewHtml, setPreviewHtml] = useState("");
   const [currentFile, setCurrentFile] = useState("");
 
-  // Web Programming Course Paid off TT
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [statusMessage, setStatusMessage] = useState("Ready");
+  const [statusMessage, setStatusMessage] = useState("Ready - Demo Mode");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-
-  // Drag and drop 
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isProcessingDrop, setisProcessingDrop] = useState(false);
-  const [dragOverTarget, setdragOverTarget] = useState<'editor' | 'generator' | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -206,221 +199,27 @@ console.log(hello);
     setShowHelp(false);
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-    setdragOverTarget(target);
-  }, []);
+  const handleDragOver = () => {};
+  const handleDragEnter = () => {};
+  const handleDragLeave = () => {};
+  const handleDrop = () => {};
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.currentTarget == e.target){
-      setIsDragOver(false);
-      setdragOverTarget(null);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    setdragOverTarget(null);
-    setisProcessingDrop(true);
-
-    try { 
-      const files = Array.from(e.dataTransfer.files);
-
-      if (files.length === 0){
-        setStatus("error");
-        setStatusMessage("No files dropped");
-        return;
-      }
-
-      if (target === 'editor'){
-        await handleDropToEditor(files);
-      } else if (target === 'generator'){
-        await handleDropToGenerator(files);
-      }
-    } catch (error){
-      console.error("Drop processing error:", error);
-      setStatus("error");
-      setStatusMessage(`Drop failes: ${error}`);
-    } finally{
-      setisProcessingDrop(false);
-    }
-  }, []);
-
-  type FileWithPath = File & { path?: string };
-
-  const getFilePath = (file: File): string => {
-    return (file as FileWithPath).path ?? file.name;
-  };
-
-  const handleDropToEditor = async (files: File[]) => {
-    const file = files[0];
-    const filePath = getFilePath(file);
-
-    if (!file.name.match(/\.(md|markdown|txt)$/i)){
-      setStatus("error");
-      setStatusMessage("Drop a markdown file .md, .markdown, .txt");
-      return;
-    }
-
-    try {
-      const content = await invoke<string>("load_file", {
-        path: filePath,
-      });
-
-      setMarkdownContent(content);
-      setCurrentFile(filePath);
-      setStatus("success");
-      setStatusMessage(`Loaded: ${file.name}`);
-    } catch (error){
-      setStatus("error");
-      setStatusMessage(`Failed to load file: ${error}`);
-    }
-  };
-
-  const handleDropToGenerator = async (files: File[]) =>{
-    const file = files[0];
-    const filePath = getFilePath(file);
-
-    try { 
-      const isDirectory = await invoke<boolean>("is_directory", {
-        path: filePath,
-      });
-
-      if (isDirectory){
-        setInputDir(filePath);
-        setStatus("success");
-        setStatusMessage(`Input directory set: ${file.name}`);
-      } else if (file.name.match(/\.(md|markdown)$/i)){
-        const parentDir = filePath.split(/[\\/]/).slice(0, -1).join('/') || "";
-        setInputDir(parentDir);
-        setStatus("success");
-        setStatusMessage(`Input directory set from file: ${file.name}`);
-      } else {
-        setStatus("error");
-        setStatusMessage("Drop a directory or markdown file");
-      }
-    } catch (error){
-      setStatus("error");
-      setStatusMessage(`Drop failed: ${error}`);
-    }
-  };
-
-  // TODO: Fix GitHub repo opening - plugin-opener API needs investigation
-  // const handleOpenGitHub = async () => {
-  //   try {
-  //     const opener = await import("@tauri-apps/plugin-opener");
-  //     await opener.open("https://github.com/MoazMustafa-stack/mdForge");
-  //     setStatus("success");
-  //     setStatusMessage("Opened GitHub repository");
-  //   } catch (error) {
-  //     console.error("Failed to open URL:", error);
-  //     setStatus("error");
-  //     setStatusMessage("Failed to open GitHub");
-  //   }
-  // };
-
-  const handleDownloadCheatsheet = async () => {
-    try {
-      // Embedded cheatsheet content
-      const cheatsheet = `# Markdown Cheatsheet
-
-## Headers
-# H1
-## H2
-### H3
-
-## Emphasis
-*Italic* or _Italic_
-**Bold** or __Bold__
-***Bold and Italic***
-~~Strikethrough~~
-
-## Lists
-### Unordered
-* Item 1
-* Item 2
-  * Subitem 2.1
-
-### Ordered
-1. First
-2. Second
-
-## Links
-[GitHub](https://github.com)
-
-## Images
-![Alt Text](https://via.placeholder.com/150)
-
-## Code
-\`Inline Code\`
-
-\`\`\`javascript
-// Code Block
-console.log("Hello World");
-\`\`\`
-
-## Blockquotes
-> This is a blockquote.
-
-## Tables
-| Header 1 | Header 2 |
-| -------- | -------- |
-| Cell 1   | Cell 2   |
-`;
-
-      // Ask user where to save
-      const filePath = await save({
-        defaultPath: "markdown-cheatsheet.md",
-        filters: [{
-          name: "Markdown",
-          extensions: ["md"]
-        }]
-      });
-
-      if (filePath) {
-        await invoke("save_file", {
-          path: filePath,
-          content: cheatsheet
-        });
-        setStatus("success");
-        setStatusMessage("Cheatsheet downloaded successfully");
-      }
-    } catch (error) {
-      console.error("Download error:", error);
-      setStatus("error");
-      setStatusMessage("Failed to download cheatsheet");
-    }
-  }
-
-  // Render live preview
-  const renderPreview = useCallback(async () => {
-    try {
-      // Check if running in Tauri environment
-      if (typeof window !== 'undefined' && !window.__TAURI_INTERNALS__) {
-        setPreviewHtml("<p><em>Preview available only in Tauri app. Run: npm run tauri dev</em></p>");
-        return;
-      }
-      
-      const html = await invoke<string>("render_markdown_simple", {
-        markdownContent: markdownContent,
-      });
-      setPreviewHtml(html);
-    } catch (error) {
-      console.error("Preview error:", error);
-      setPreviewHtml("<p>Error rendering preview</p>");
-    }
+  // Simple markdown rendering for demo
+  const renderPreview = useCallback(() => {
+    const html = markdownContent
+      .replace(/^### (.*?)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.*?)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.*?)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/~~(.*?)~~/g, '<del>$1</del>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/```[\s\S]*?```/g, '<pre><code>Code block</code></pre>')
+      .replace(/^- (.*?)$/gm, '<li>$1</li>')
+      .replace(/^> (.*?)$/gm, '<blockquote>$1</blockquote>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    
+    setPreviewHtml(`<p>${html}</p>`);
   }, [markdownContent]);
 
   useEffect(() => {
@@ -429,21 +228,6 @@ console.log("Hello World");
     }, 300);
     return () => clearTimeout(debounceTimer);
   }, [markdownContent, renderPreview]);
-
-  // Update word count when content changes
-  useEffect(() => {
-    const words = markdownContent.trim().split(/\s+/).filter(word => word.length > 0);
-    setWordCount(words.length);
-  }, [markdownContent]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => setActiveDropdown(null);
-    if (activeDropdown) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [activeDropdown]);
 
   // Update word count when content changes
   useEffect(() => {
@@ -469,25 +253,9 @@ console.log("Hello World");
             e.preventDefault();
             handleNewFile();
             break;
-          case 'o':
-            e.preventDefault();
-            handleOpenFile();
-            break;
-          case 's':
-            e.preventDefault();
-            handleSaveFile();
-            break;
           case 'f':
             e.preventDefault();
             handleFind();
-            break;
-          case 'a':
-            if (e.target instanceof HTMLTextAreaElement) {
-              // Let default behavior handle select all in textarea
-              return;
-            }
-            e.preventDefault();
-            handleSelectAll();
             break;
           case '=':
           case '+':
@@ -502,10 +270,11 @@ console.log("Hello World");
             e.preventDefault();
             handleResetZoom();
             break;
+          default:
+            break;
         }
       }
       
-      // Escape key to close dropdowns and search
       if (e.key === 'Escape') {
         setActiveDropdown(null);
         setShowSearch(false);
@@ -516,8 +285,8 @@ console.log("Hello World");
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Generate site
-  const handleGenerateSite = async () => {
+  // Demo handlers
+  const handleGenerateSite = () => {
     if (!inputDir || !outputDir) {
       setStatus("error");
       setStatusMessage("Please specify input and output directories");
@@ -528,132 +297,65 @@ console.log("Hello World");
     setStatus("idle");
     setStatusMessage("Generating site...");
 
-    // Show fake loading screen if enabled
     if (showLoadingScreen) {
       setShowFakeLoading(true);
-      const minLoadingTime = 2000 + Math.random() * 2000;
-      await new Promise(resolve => setTimeout(resolve, minLoadingTime));
-    }
-
-    try {
-      const result = await invoke<SiteGenerationReport>("generate_site_simple", {
-        inputDir,
-        outputDir,
-      });
-      console.log("Generation result:", result);
-      setReport(result);
+      setTimeout(() => {
+        setShowFakeLoading(false);
+        const mockReport: SiteGenerationReport = {
+          markdown_files_processed: 5,
+          markdown_files_failed: 0,
+          assets_copied: 12,
+          assets_failed: 0,
+          errors: [],
+        };
+        setReport(mockReport);
+        setStatus("success");
+        setStatusMessage("[DEMO] Generated 5 files - No actual backend");
+        setIsGenerating(false);
+      }, 3000);
+    } else {
+      const mockReport: SiteGenerationReport = {
+        markdown_files_processed: 5,
+        markdown_files_failed: 0,
+        assets_copied: 12,
+        assets_failed: 0,
+        errors: [],
+      };
+      setReport(mockReport);
       setStatus("success");
-      setStatusMessage(`Generated ${result.markdown_files_processed} files`);
-    } catch (error) {
-      console.error("Generation error:", error);
-      setStatus("error");
-      setStatusMessage(`Error: ${String(error)}`);
-      setReport(null);
-    } finally {
-      setShowFakeLoading(false);
+      setStatusMessage("[DEMO] Generated 5 files - No actual backend");
       setIsGenerating(false);
     }
   };
 
-  // Save file
-  const handleSaveFile = async () => {
-    if (!currentFile) {
-      setStatus("error");
-      setStatusMessage("No file path specified");
-      return;
-    }
-
-    try {
-      await invoke("save_file", {
-        path: currentFile,
-        content: markdownContent,
-      });
-      setStatus("success");
-      setStatusMessage("File saved successfully");
-    } catch (error) {
-      setStatus("error");
-      setStatusMessage(`Save error: ${error}`);
-    }
+  // Save file (demo)
+  const handleSaveFile = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] File saved - No backend");
   };
 
-  // Open file
-  const handleOpenFile = async () => {
-    try {
-      const filePath = await open({
-        filters: [{
-          name: "Markdown",
-          extensions: ["md", "markdown", "txt"]
-        }]
-      });
-
-      if (filePath) {
-        const content = await invoke<string>("load_file", {
-          path: filePath,
-        });
-        setMarkdownContent(content);
-        setCurrentFile(filePath as string);
-        setStatus("success");
-        setStatusMessage("File loaded successfully");
-      }
-    } catch (error) {
-      setStatus("error");
-      setStatusMessage(`Open error: ${error}`);
-    }
+  // Open file (demo)
+  const handleOpenFile = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] Open file - No backend");
   };
 
-  // Browse for input directory
-  const handleBrowseInput = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-      });
-      if (selected && typeof selected === "string") {
-        setInputDir(selected);
-      }
-    } catch (error) {
-      console.error("Browse input error:", error);
-      setStatus("error");
-      setStatusMessage("Failed to select input directory");
-    }
+  // Browse for input directory (demo)
+  const handleBrowseInput = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] Browse directory - No backend");
   };
 
-  // Browse for output directory
-  const handleBrowseOutput = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-      });
-      if (selected && typeof selected === "string") {
-        setOutputDir(selected);
-      }
-    } catch (error) {
-      console.error("Browse output error:", error);
-      setStatus("error");
-      setStatusMessage("Failed to select output directory");
-    }
+  // Browse for output directory (demo)
+  const handleBrowseOutput = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] Browse directory - No backend");
   };
 
-  // Load file
-  const handleLoadFile = async () => {
-    if (!currentFile) {
-      setStatus("error");
-      setStatusMessage("No file path specified");
-      return;
-    }
-
-    try {
-      const content = await invoke<string>("load_file", {
-        path: currentFile,
-      });
-      setMarkdownContent(content);
-      setStatus("success");
-      setStatusMessage("File loaded successfully");
-    } catch (error) {
-      setStatus("error");
-      setStatusMessage(`Load error: ${error}`);
-    }
+  // Load file (demo)
+  const handleLoadFile = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] File loaded - No backend");
   };
 
   // New file
@@ -694,13 +396,9 @@ console.log("Hello World");
     setActiveDropdown(null);
   };
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(markdownContent);
-      setStatusMessage('Content copied to clipboard');
-    } catch (error) {
-      setStatusMessage('Failed to copy content');
-    }
+  const handleCopy = () => {
+    navigator.clipboard.writeText(markdownContent);
+    setStatusMessage('Content copied to clipboard');
     setActiveDropdown(null);
   };
 
@@ -747,56 +445,21 @@ console.log("Hello World");
     setActiveDropdown(null);
   };
 
-  // Load available templates
-  useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        const templates = await invoke<string[]>("get_available_templates");
-        setAvailableTemplates(templates);
-      } catch (error) {
-        console.error("Failed to load templates:", error);
-      }
-    };
-    loadTemplates();
-  }, []);
+  // Load available templates (demo - static list)
+  // In real app, this would call backend
 
-  // Export as HTML with template
-  const handleExportAsHtml = async () => {
-    try {
-      const filePath = await save({
-        defaultPath: `${exportTitle || "document"}.html`,
-        filters: [{
-          name: "HTML",
-          extensions: ["html"]
-        }]
-      });
+  // Export as HTML (demo)
+  const handleExportAsHtml = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] Export HTML - No backend");
+    setActiveDropdown(null);
+  };
 
-      if (filePath) {
-        const result = await invoke<string>("export_as_html", {
-          markdownContent: markdownContent,
-          title: exportTitle || null,
-          templateName: selectedTemplate,
-          outputPath: filePath,
-        });
-        
-        setStatus("success");
-        setStatusMessage(result);
-      }
-    } catch (error) {
-      console.error("Export error details:", error);
-      setStatus("error");
-      
-      // Better error message extraction
-      let errorMsg = "Export failed";
-      if (typeof error === 'string') {
-        errorMsg = error;
-      } else if (error && typeof error === 'object') {
-        // Extract message from Tauri error object
-        errorMsg = (error as any).message || (error as any).toString() || JSON.stringify(error);
-      }
-      
-      setStatusMessage(`Export failed: ${errorMsg}`);
-    }
+  // Download cheatsheet (demo)
+  const handleDownloadCheatsheet = () => {
+    setStatus("success");
+    setStatusMessage("[DEMO] Download cheatsheet - No backend");
+    setActiveDropdown(null);
   };
 
   return (
@@ -804,7 +467,7 @@ console.log("Hello World");
       {/* Title Bar */}
       <div className="titlebar">
         <div className="titlebar-title">
-          <span>mdForge - Markdown Site Generator</span>
+          <span>mdForge - Theme Tester (Demo Mode)</span>
         </div>
         <div className="titlebar-controls">
           <button className="titlebar-btn" title="Minimize">_</button>
@@ -1124,7 +787,7 @@ console.log("Hello World");
             {/* Preview - Conditionally rendered */}
             {previewVisible && (
               <div className="flex-col-1">
-                <label className="form-label"> Live Preview:</label>
+                <label className="form-label"> Live Preview ({selectedTemplate} theme):</label>
                 <div
                   className="preview-container"
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
@@ -1201,18 +864,6 @@ console.log("Hello World");
               <fieldset className="fieldset-90s">
                 <legend>Resources</legend>
                 
-                {/* TODO: Re-enable when GitHub opener is fixed */}
-                {/* <div className="help-section">
-                  <button className="btn-90s btn-full" onClick={handleOpenGitHub}>
-                    <span></span> View GitHub Repository
-                  </button>
-                  <div className="setting-description">
-                    Visit the mdForge repository for source code, issues, and contributions.
-                  </div>
-                </div>
-
-                <div className="divider" /> */}
-
                 <div className="help-section">
                   <button className="btn-90s secondary btn-full" onClick={handleDownloadCheatsheet}>
                     <span>📄</span> Download Markdown Cheatsheet
