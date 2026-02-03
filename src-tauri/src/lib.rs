@@ -199,12 +199,15 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn is_directory(path: String) -> Result<bool, String> {
+async fn is_directory(path: String) -> Result<bool> {
     use std::path::Path;
 
     let path = Path::new(&path);
     if !path.exists() {
-        return Err(format!("Path '{}' does not exist.", path.display()));
+        return Err(error::MdForgeError::invalid_path(format!(
+            "Path '{}' does not exist.",
+            path.display()
+        )));
     }
 
     Ok(path.is_dir())
