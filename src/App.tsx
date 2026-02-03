@@ -106,6 +106,7 @@ function LoadingScreen({ isVisible, message = "Generating Site..." }: LoadingScr
   );
 }
 
+function App() {
   // Title Bar
   const [showLoadingScreen, setShowLoadingScreen] = useState(() => {
     const saved = localStorage.getItem('mdForge_showLoadingScreen');
@@ -198,11 +199,6 @@ console.log(hello);
   const handleCloseHelp = () => {
     setShowHelp(false);
   };
-
-  const handleDragOver = () => {};
-  const handleDragEnter = () => {};
-  const handleDragLeave = () => {};
-  const handleDrop = () => {};
 
   // Simple markdown rendering for demo
   const renderPreview = useCallback(() => {
