@@ -166,6 +166,10 @@ console.log(hello);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("Ready - Demo Mode");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('mdForge_theme');
+    return saved ?? "default";
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -178,6 +182,31 @@ console.log(hello);
   useEffect(() => {
     localStorage.setItem('mdForge_showLoadingScreen', JSON.stringify(showLoadingScreen));
   }, [showLoadingScreen]);
+
+  useEffect(() => {
+    localStorage.setItem('mdForge_theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const appRoot = document.getElementById("root");
+    const themeClasses = ["theme-dark", "theme-y2k"];
+
+    root.classList.remove(...themeClasses);
+    body.classList.remove(...themeClasses);
+    appRoot?.classList.remove(...themeClasses);
+
+    if (theme !== "default") {
+      root.className = theme;
+      body.className = theme;
+      appRoot && (appRoot.className = theme);
+    } else {
+      root.className = "";
+      body.className = "";
+      appRoot && (appRoot.className = "");
+    }
+  }, [theme]);
 
   // Toggle settings handlers
   const handleToggleLoadingScreen = () => {
@@ -464,6 +493,7 @@ console.log(hello);
       <div className="titlebar">
         <div className="titlebar-title">
           <span>mdForge - Theme Tester (Demo Mode)</span>
+          <span className="titlebar-theme">Theme: {theme === "default" ? "90s" : theme === "theme-dark" ? "Dark" : "Y2K"}</span>
         </div>
         <div className="titlebar-controls">
           <button className="titlebar-btn" title="Minimize">_</button>
@@ -835,6 +865,26 @@ console.log(hello);
                 <div className="setting-description">
                   When enabled, displays a retro loading screen with progress bar
                   and status messages during site generation.
+                </div>
+              </fieldset>
+
+              <fieldset className="fieldset-90s">
+                <legend>Theme</legend>
+                <div className="form-group">
+                  <label className="form-label">App Theme:</label>
+                  <select
+                    className="input-90s"
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value)}
+                    title="Select app UI theme"
+                  >
+                    <option value="default">90s Windows (Default)</option>
+                    <option value="theme-dark">Dark Mode</option>
+                    <option value="theme-y2k">Y2K</option>
+                  </select>
+                </div>
+                <div className="setting-description">
+                  Choose an app UI theme. Applies instantly and is saved locally.
                 </div>
               </fieldset>
 
