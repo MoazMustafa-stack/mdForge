@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event"
 import "./App.css";
 
 declare global {
@@ -167,12 +168,6 @@ console.log(hello);
   const [statusMessage, setStatusMessage] = useState("Ready");
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-  // Theme state
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('mdForge_theme');
-    return saved ?? "default";
-  });
-
   // Drag and drop 
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessingDrop, setisProcessingDrop] = useState(false);
@@ -189,29 +184,6 @@ console.log(hello);
   useEffect(() => {
     localStorage.setItem('mdForge_showLoadingScreen', JSON.stringify(showLoadingScreen));
   }, [showLoadingScreen]);
-
-  // Persist theme setting
-  useEffect(() => {
-    localStorage.setItem('mdForge_theme', theme);
-  }, [theme]);
-
-  // Apply theme classes
-  useEffect(() => {
-    const root = document.documentElement;
-    const body = document.body;
-    const appRoot = document.getElementById("root");
-    const themeClasses = ["theme-dark", "theme-y2k"];
-
-    root.classList.remove(...themeClasses);
-    body.classList.remove(...themeClasses);
-    appRoot?.classList.remove(...themeClasses);
-
-    if (theme !== "default") {
-      root.classList.add(theme);
-      body.classList.add(theme);
-      appRoot?.classList.add(theme);
-    }
-  }, [theme]);
 
   // Toggle settings handlers
   const handleToggleLoadingScreen = () => {
@@ -256,7 +228,7 @@ console.log(hello);
     }
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent, target: 'editor' | 'generator') =>{
+  const handleDrop = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
@@ -327,7 +299,7 @@ console.log(hello);
       });
 
       if (isDirectory){
-        setInputDir(filePath || "");
+        setInputDir(filePath);
         setStatus("success");
         setStatusMessage(`Input directory set: ${file.name}`);
       } else if (file.name.match(/\.(md|markdown)$/i)){
@@ -833,7 +805,6 @@ console.log("Hello World");
       <div className="titlebar">
         <div className="titlebar-title">
           <span>mdForge - Markdown Site Generator</span>
-          <span className="titlebar-theme">Theme: {theme === "default" ? "90s" : theme === "theme-dark" ? "Dark" : "Y2K"}</span>
         </div>
         <div className="titlebar-controls">
           <button className="titlebar-btn" title="Minimize">_</button>
@@ -956,27 +927,11 @@ console.log("Hello World");
       {/* Main Content */}
       <div className="main-content">
         {/* Left Panel - Site Generator */}
-        <div
-          className={`panel panel-left${isDragOver && dragOverTarget === 'generator' ? ' drag-over' : ''}${isProcessingDrop ? ' processing-drop' : ''}`}
-          onDragOver={(e) => handleDragOver(e, 'generator')}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, 'generator')}
-        >
+        <div className="panel panel-left">
           <div className="panel-header">
             <span className="panel-icon">⚙️</span>
             Site Generator
-            <span className="dropzone-hint">Drop a folder or .md file</span>
           </div>
-          {isDragOver && dragOverTarget === 'generator' && (
-            <div className="drop-overlay">
-              <div className="drop-overlay-content">
-                <div className="drop-overlay-icon">📁</div>
-                <div className="drop-overlay-title">Drop to set input directory</div>
-                <div className="drop-overlay-subtitle">Folder or markdown file</div>
-              </div>
-            </div>
-          )}
           <div className="panel-content">
             {/* Directory Settings */}
             <fieldset className="fieldset-90s">
@@ -1135,17 +1090,9 @@ console.log("Hello World");
         </div>
 
         {/* Right Panel - Editor & Preview */}
-        <div
-          className={`panel panel-right${isDragOver && dragOverTarget === 'editor' ? ' drag-over' : ''}${isProcessingDrop ? ' processing-drop' : ''}`}
-          style={{ fontSize: `${zoomLevel}rem` }}
-          onDragOver={(e) => handleDragOver(e, 'editor')}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, 'editor')}
-        >
+        <div className="panel panel-right" style={{ fontSize: `${zoomLevel}rem` }}>
           <div className="panel-header">
             Markdown Editor & Live Preview
-            <span className="dropzone-hint">Drop a .md file to open</span>
             {showSearch && (
               <div className="search-bar">
                 <input
@@ -1160,15 +1107,6 @@ console.log("Hello World");
               </div>
             )}
           </div>
-          {isDragOver && dragOverTarget === 'editor' && (
-            <div className="drop-overlay">
-              <div className="drop-overlay-content">
-                <div className="drop-overlay-icon">📄</div>
-                <div className="drop-overlay-title">Drop to load markdown</div>
-                <div className="drop-overlay-subtitle">.md, .markdown, .txt</div>
-              </div>
-            </div>
-          )}
           <div className="panel-content column">
             {/* Markdown Editor */}
             <div className="flex-1">
@@ -1238,26 +1176,6 @@ console.log("Hello World");
                 <div className="setting-description">
                   When enabled, displays a retro loading screen with progress bar
                   and status messages during site generation.
-                </div>
-              </fieldset>
-
-              <fieldset className="fieldset-90s">
-                <legend>🎨 Theme</legend>
-                <div className="form-group">
-                  <label className="form-label">Select Theme:</label>
-                  <select
-                    className="input-90s"
-                    value={theme}
-                    onChange={(e) => setTheme(e.target.value)}
-                    title="Select application theme"
-                  >
-                    <option value="default">90s Classic</option>
-                    <option value="theme-dark">Dark Mode</option>
-                    <option value="theme-y2k">Y2K Aesthetic</option>
-                  </select>
-                </div>
-                <div className="setting-description">
-                  Choose your preferred visual theme. Changes are applied immediately.
                 </div>
               </fieldset>
 
