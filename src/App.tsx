@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 declare global {
@@ -175,8 +176,8 @@ console.log(hello);
 
   // Drag and drop 
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isProcessingDrop, setisProcessingDrop] = useState(false);
-  const [dragOverTarget, setdragOverTarget] = useState<'editor' | 'generator' | null>(null);
+  const [isProcessingDrop, setIsProcessingDrop] = useState(false);
+  const [dragOverTarget, setDragOverTarget] = useState<'editor' | 'generator' | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -213,6 +214,49 @@ console.log(hello);
     }
   }, [theme]);
 
+  // Tauri file drop event listener
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+
+    const setupDropListener = async () => {
+      unlisten = await appWindow.onDragDropEvent(async (event) => {
+        if (event.payload.type === 'drop') {
+          const paths = event.payload.paths;
+          
+          // Clear drag states immediately when drop happens
+          setIsDragOver(false);
+          setDragOverTarget(null);
+          
+          if (paths.length === 0) return;
+          
+          // Determine which target based on dragOverTarget or default to editor
+          const target = dragOverTarget || 'editor';
+          const filePath = paths[0];
+          
+          if (target === 'editor') {
+            await handleDropToEditor(filePath);
+          } else if (target === 'generator') {
+            await handleDropToGenerator(filePath);
+          }
+        } else if (event.payload.type === 'over') {
+          setIsDragOver(true);
+        } else if (event.payload.type === 'leave') {
+          setIsDragOver(false);
+          setDragOverTarget(null);
+        }
+      });
+    };
+
+    setupDropListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [dragOverTarget]);
+
   // Toggle settings handlers
   const handleToggleLoadingScreen = () => {
     setShowLoadingScreen((prev: boolean) => !prev);
@@ -234,11 +278,11 @@ console.log(hello);
     setShowHelp(false);
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
+  const handleDragOver = useCallback((e: React.DragEvent, target: 'editor' | 'generator') => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
-    setdragOverTarget(target);
+    setDragOverTarget(target);
   }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -250,58 +294,32 @@ console.log(hello);
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.currentTarget == e.target){
+    if (e.currentTarget === e.target) {
       setIsDragOver(false);
-      setdragOverTarget(null);
+      setDragOverTarget(null);
     }
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent, target: 'editor' | 'generator') =>{
+  const handleDrop = useCallback(async (e: React.DragEvent, target: 'editor' | 'generator') => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
-    setdragOverTarget(null);
-    setisProcessingDrop(true);
-
-    try { 
-      const files = Array.from(e.dataTransfer.files);
-
-      if (files.length === 0){
-        setStatus("error");
-        setStatusMessage("No files dropped");
-        return;
-      }
-
-      if (target === 'editor'){
-        await handleDropToEditor(files);
-      } else if (target === 'generator'){
-        await handleDropToGenerator(files);
-      }
-    } catch (error){
-      console.error("Drop processing error:", error);
-      setStatus("error");
-      setStatusMessage(`Drop failes: ${error}`);
-    } finally{
-      setisProcessingDrop(false);
-    }
+    setDragOverTarget(null);
+    
+    // Store the target for when Tauri file-drop event fires
+    // The actual file paths come from Tauri's onDragDropEvent
+    setStatus("idle");
+    setStatusMessage(`Processing drop on ${target}...`);
   }, []);
 
-  type FileWithPath = File & { path?: string };
-
-  const getFilePath = (file: File): string => {
-    return (file as FileWithPath).path ?? file.name;
-  };
-
-  const handleDropToEditor = async (files: File[]) => {
-    const file = files[0];
-    const filePath = getFilePath(file);
-
-    if (!file.name.match(/\.(md|markdown|txt)$/i)){
+  const handleDropToEditor = async (filePath: string) => {
+    if (!filePath.match(/\.(md|markdown|txt)$/i)) {
       setStatus("error");
-      setStatusMessage("Drop a markdown file .md, .markdown, .txt");
+      setStatusMessage("Drop a markdown file (.md, .markdown, .txt)");
       return;
     }
 
+    setIsProcessingDrop(true);
     try {
       const content = await invoke<string>("load_file", {
         path: filePath,
@@ -310,38 +328,43 @@ console.log(hello);
       setMarkdownContent(content);
       setCurrentFile(filePath);
       setStatus("success");
-      setStatusMessage(`Loaded: ${file.name}`);
-    } catch (error){
+      const fileName = filePath.split(/[\\/]/).pop() || filePath;
+      setStatusMessage(`Loaded: ${fileName}`);
+    } catch (error) {
       setStatus("error");
       setStatusMessage(`Failed to load file: ${error}`);
+    } finally {
+      setIsProcessingDrop(false);
     }
   };
 
-  const handleDropToGenerator = async (files: File[]) =>{
-    const file = files[0];
-    const filePath = getFilePath(file);
-
-    try { 
+  const handleDropToGenerator = async (filePath: string) => {
+    setIsProcessingDrop(true);
+    try {
       const isDirectory = await invoke<boolean>("is_directory", {
         path: filePath,
       });
 
-      if (isDirectory){
-        setInputDir(filePath || "");
+      const fileName = filePath.split(/[\\/]/).pop() || filePath;
+
+      if (isDirectory) {
+        setInputDir(filePath);
         setStatus("success");
-        setStatusMessage(`Input directory set: ${file.name}`);
-      } else if (file.name.match(/\.(md|markdown)$/i)){
+        setStatusMessage(`Input directory set: ${fileName}`);
+      } else if (filePath.match(/\.(md|markdown)$/i)) {
         const parentDir = filePath.split(/[\\/]/).slice(0, -1).join('/') || "";
         setInputDir(parentDir);
         setStatus("success");
-        setStatusMessage(`Input directory set from file: ${file.name}`);
+        setStatusMessage(`Input directory set from file: ${fileName}`);
       } else {
         setStatus("error");
         setStatusMessage("Drop a directory or markdown file");
       }
-    } catch (error){
+    } catch (error) {
       setStatus("error");
       setStatusMessage(`Drop failed: ${error}`);
+    } finally {
+      setIsProcessingDrop(false);
     }
   };
 
@@ -833,7 +856,7 @@ console.log("Hello World");
       <div className="titlebar">
         <div className="titlebar-title">
           <span>mdForge - Markdown Site Generator</span>
-          <span className="titlebar-theme">Theme: {theme === "default" ? "90s" : theme === "theme-dark" ? "Dark" : "Y2K"}</span>
+          {/*<span className="titlebar-theme">Theme: {theme === "default" ? "90s" : theme === "theme-dark" ? "Dark" : "Y2K"}</span>*/}
         </div>
         <div className="titlebar-controls">
           <button className="titlebar-btn" title="Minimize">_</button>
