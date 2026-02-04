@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-04
+
+### Added
+- Drag and drop support for markdown files and folders
+- Dropzone UI feedback for editor and site generator panels
+
 ## [0.1.0] - 2026-01-12
 
 ### Added
@@ -24,5 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rust backend for markdown processing
 - Vite for frontend bundling
 
-[Unreleased]: https://github.com/MoazMustafa-stack/mdForge/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/MoazMustafa-stack/mdForge/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/MoazMustafa-stack/mdForge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/MoazMustafa-stack/mdForge/releases/tag/v0.1.0

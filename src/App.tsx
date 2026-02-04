@@ -228,7 +228,7 @@ console.log(hello);
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent, target: 'editor' | 'generator') =>{
+  const handleDrop = useCallback(async (e: React.DragEvent, target: 'editor' | 'generator') =>{
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
@@ -299,7 +299,7 @@ console.log(hello);
       });
 
       if (isDirectory){
-        setInputDir(filePath);
+        setInputDir(filePath || "");
         setStatus("success");
         setStatusMessage(`Input directory set: ${file.name}`);
       } else if (file.name.match(/\.(md|markdown)$/i)){
@@ -927,11 +927,27 @@ console.log("Hello World");
       {/* Main Content */}
       <div className="main-content">
         {/* Left Panel - Site Generator */}
-        <div className="panel panel-left">
+        <div
+          className={`panel panel-left${isDragOver && dragOverTarget === 'generator' ? ' drag-over' : ''}${isProcessingDrop ? ' processing-drop' : ''}`}
+          onDragOver={(e) => handleDragOver(e, 'generator')}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, 'generator')}
+        >
           <div className="panel-header">
             <span className="panel-icon">⚙️</span>
             Site Generator
+            <span className="dropzone-hint">Drop a folder or .md file</span>
           </div>
+          {isDragOver && dragOverTarget === 'generator' && (
+            <div className="drop-overlay">
+              <div className="drop-overlay-content">
+                <div className="drop-overlay-icon">📁</div>
+                <div className="drop-overlay-title">Drop to set input directory</div>
+                <div className="drop-overlay-subtitle">Folder or markdown file</div>
+              </div>
+            </div>
+          )}
           <div className="panel-content">
             {/* Directory Settings */}
             <fieldset className="fieldset-90s">
@@ -1090,9 +1106,17 @@ console.log("Hello World");
         </div>
 
         {/* Right Panel - Editor & Preview */}
-        <div className="panel panel-right" style={{ fontSize: `${zoomLevel}rem` }}>
+        <div
+          className={`panel panel-right${isDragOver && dragOverTarget === 'editor' ? ' drag-over' : ''}${isProcessingDrop ? ' processing-drop' : ''}`}
+          style={{ fontSize: `${zoomLevel}rem` }}
+          onDragOver={(e) => handleDragOver(e, 'editor')}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, 'editor')}
+        >
           <div className="panel-header">
             Markdown Editor & Live Preview
+            <span className="dropzone-hint">Drop a .md file to open</span>
             {showSearch && (
               <div className="search-bar">
                 <input
@@ -1107,6 +1131,15 @@ console.log("Hello World");
               </div>
             )}
           </div>
+          {isDragOver && dragOverTarget === 'editor' && (
+            <div className="drop-overlay">
+              <div className="drop-overlay-content">
+                <div className="drop-overlay-icon">📄</div>
+                <div className="drop-overlay-title">Drop to load markdown</div>
+                <div className="drop-overlay-subtitle">.md, .markdown, .txt</div>
+              </div>
+            </div>
+          )}
           <div className="panel-content column">
             {/* Markdown Editor */}
             <div className="flex-1">
